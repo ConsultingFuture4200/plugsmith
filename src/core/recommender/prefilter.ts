@@ -38,7 +38,7 @@ const SIGNALS: Record<string, string[]> = {
   testing: ["test", "tdd", "coverage", "vitest", "jest", "pytest", "ci", "verify", "verification"],
   "multi-agent": ["agent", "orchestrate", "orchestration", "multi-agent", "subagent", "pipeline", "swarm"],
   observability: ["observability", "telemetry", "logging", "metrics", "trace", "monitor"],
-  integrations: ["mcp", "integration", "connector", "api", "slack", "github", "notion", "jira", "linear", "database", "supabase", "stripe"],
+  integrations: ["mcp", "integration", "connector", "api", "slack", "github", "notion", "jira", "linear", "database", "postgres", "postgresql", "sql", "supabase", "stripe"],
   domain: ["domain", "metrc", "shopify", "cannabis", "ecommerce", "amazon", "formulation"],
   "output-styling": ["format output", "styling", "markdown", "render", "presentation", "report style"],
 };
