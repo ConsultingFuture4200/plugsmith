@@ -21,6 +21,7 @@ interface ComponentRow {
   category_tags: string;
   bundles: string;
   context_cost_flag: number;
+  context_tokens: number | null;
   singleton_categories: string;
   compatibility: string;
   allowed_tools: string | null;
@@ -51,6 +52,7 @@ function rowToComponent(row: ComponentRow): Component {
     compatibility: JSON.parse(row.compatibility) as string[],
   };
   if (row.description != null) component.description = row.description;
+  if (row.context_tokens != null) component.contextTokens = row.context_tokens;
   if (row.allowed_tools != null) component.allowedTools = JSON.parse(row.allowed_tools) as string[];
   if (row.version != null) component.version = row.version;
   if (row.author != null) component.author = row.author;
@@ -68,11 +70,11 @@ export function upsertComponents(db: DB, components: Component[]): void {
   const stmt = db.prepare(/* sql */ `
     INSERT INTO components (
       id, name, marketplace_id, trust_tier, description,
-      category_tags, bundles, context_cost_flag, singleton_categories,
+      category_tags, bundles, context_cost_flag, context_tokens, singleton_categories,
       compatibility, allowed_tools, version, author, license, last_synced
     ) VALUES (
       @id, @name, @marketplace_id, @trust_tier, @description,
-      @category_tags, @bundles, @context_cost_flag, @singleton_categories,
+      @category_tags, @bundles, @context_cost_flag, @context_tokens, @singleton_categories,
       @compatibility, @allowed_tools, @version, @author, @license, @last_synced
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -83,6 +85,7 @@ export function upsertComponents(db: DB, components: Component[]): void {
       category_tags = excluded.category_tags,
       bundles = excluded.bundles,
       context_cost_flag = excluded.context_cost_flag,
+      context_tokens = excluded.context_tokens,
       singleton_categories = excluded.singleton_categories,
       compatibility = excluded.compatibility,
       allowed_tools = excluded.allowed_tools,
@@ -103,6 +106,7 @@ export function upsertComponents(db: DB, components: Component[]): void {
         category_tags: JSON.stringify(c.categoryTags),
         bundles: JSON.stringify(c.bundles),
         context_cost_flag: c.contextCostFlag ? 1 : 0,
+        context_tokens: c.contextTokens ?? null,
         singleton_categories: JSON.stringify(c.singletonCategories),
         compatibility: JSON.stringify(c.compatibility),
         allowed_tools: c.allowedTools ? JSON.stringify(c.allowedTools) : null,

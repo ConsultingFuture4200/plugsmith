@@ -10,7 +10,7 @@ export type ProviderName = "anthropic" | "local";
 export interface MarketplaceConfig {
   name: string;
   gitUrl: string;
-  kind: "canonical" | "official" | "custom";
+  kind: "canonical" | "official" | "custom" | "local-cache";
   trustDefault: TrustTier;
   enabled: boolean;
 }
@@ -36,6 +36,15 @@ export const DEFAULT_CONFIG: CcharnessConfig = {
   anthropic: { model: "claude-opus-4-8", apiKeyEnv: "ANTHROPIC_API_KEY" },
   local: { baseUrl: "http://localhost:11434/v1", model: "qwen3:4b" },
   marketplaces: [
+    // Local Claude Code catalog cache — the primary index source with REAL
+    // per-model token costs over the operator's installed marketplaces (PRD §4.1).
+    {
+      name: "local-cli-cache",
+      gitUrl: "~/.claude/plugins/plugin-catalog-cache.json",
+      kind: "local-cache",
+      trustDefault: "community",
+      enabled: true,
+    },
     // Canonical, richest metadata (tonsofskills / ccpi) — PRD §1.1.
     {
       name: "canonical-catalog",

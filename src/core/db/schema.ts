@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS components (
   category_tags       TEXT NOT NULL DEFAULT '[]', -- json array of category keys
   bundles             TEXT NOT NULL DEFAULT '{}', -- json: skills/commands/hooks/mcpServers
   context_cost_flag   INTEGER NOT NULL DEFAULT 0,
+  context_tokens      INTEGER,                     -- always-on token cost (ref model), nullable
   singleton_categories TEXT NOT NULL DEFAULT '[]', -- json array
   compatibility       TEXT NOT NULL DEFAULT '[]', -- json array; stored, not acted on in v1
   allowed_tools       TEXT,                        -- json array, nullable

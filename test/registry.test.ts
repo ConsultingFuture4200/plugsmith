@@ -5,9 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../src/core/config.js";
 import { getAllComponents } from "../src/core/db/components.js";
 import { type DB, indexVersion, openStore } from "../src/core/db/store.js";
+import { getComponent } from "../src/core/db/components.js";
 import {
   NormalizeError,
   normalizeCanonical,
+  normalizeLocalCache,
   normalizeOfficial,
 } from "../src/core/registry/normalizer.js";
 import { search, sync } from "../src/core/registry/sync.js";
@@ -85,6 +87,146 @@ describe("normalizeOfficial (PRD §4.1)", () => {
 
   it("throws NormalizeError when name is missing", () => {
     expect(() => normalizeOfficial({ category: "git" }, "official")).toThrow(NormalizeError);
+  });
+});
+
+describe("normalizeLocalCache (PRD §4.1, Milestone A/B)", () => {
+  const REF_MODELS = ["claude-opus-4-7", "claude-sonnet-4-6"];
+
+  function entry(over: Record<string, unknown> = {}) {
+    return {
+      plugin: "demo-plugin",
+      tokens: {
+        "claude-opus-4-7": { always_on: 1216, on_invoke: 23647 },
+        "claude-sonnet-4-6": { always_on: 899, on_invoke: 17632 },
+      },
+      components: {
+        commands: [{ name: "demo-cmd", chars: { always_on: 10, on_invoke: 20 } }],
+        agents: [],
+        skills: [{ name: "demo-skill", chars: { always_on: 5, on_invoke: 9 } }],
+        hooks: [],
+        mcpServers: [],
+        lspServers: [],
+      },
+      unique_installs: 10,
+      last_updated: "2026-06-12T10:45:37-07:00",
+      marketplace_entry: {
+        name: "demo-plugin",
+        description: "demo description",
+        category: "security",
+      },
+      version: "1.6.3",
+      ...over,
+    };
+  }
+
+  it("sets id to the full @-key, not the bare plugin name (Milestone B reconciliation)", () => {
+    const c = normalizeLocalCache(entry(), {
+      key: "demo-plugin@claude-plugins-official",
+      trustDefault: "community",
+      refModels: REF_MODELS,
+    });
+    expect(c.id).toBe("demo-plugin@claude-plugins-official");
+    expect(c.name).toBe("demo-plugin");
+    expect(c.marketplaceId).toBe("claude-plugins-official");
+    expect(c.trustTier).toBe("official"); // anthropic-managed marketplace
+  });
+
+  it("takes contextTokens from the ref model's always_on and maps tags", () => {
+    const c = normalizeLocalCache(entry(), {
+      key: "demo-plugin@canonical-catalog",
+      trustDefault: "community",
+      refModels: REF_MODELS,
+    });
+    expect(c.contextTokens).toBe(1216); // first ref model always_on
+    expect(c.trustTier).toBe("partner"); // canonical source
+    expect(c.categoryTags).toEqual(["security"]); // category mapped via TAG_TO_CATEGORY
+    expect(c.bundles.commands).toEqual(["demo-cmd"]);
+    expect(c.bundles.skills).toEqual(["demo-skill"]);
+  });
+
+  it("flags context-cost when always-on tokens meet the threshold (>=1500)", () => {
+    const costly = normalizeLocalCache(
+      entry({ tokens: { "claude-opus-4-7": { always_on: 1600, on_invoke: 100 } } }),
+      { key: "demo-plugin@other", trustDefault: "community", refModels: REF_MODELS },
+    );
+    expect(costly.contextTokens).toBe(1600);
+    expect(costly.contextCostFlag).toBe(true); // 1600 >= 1500 threshold
+  });
+
+  it("light when below the token threshold and no MCP/hook", () => {
+    const c = normalizeLocalCache(
+      entry({
+        tokens: {
+          "claude-opus-4-7": { always_on: 800, on_invoke: 100 },
+        },
+      }),
+      { key: "demo-plugin@other", trustDefault: "community", refModels: REF_MODELS },
+    );
+    expect(c.contextTokens).toBe(800);
+    expect(c.contextCostFlag).toBe(false); // 800 < 1500, no MCP, no hook
+  });
+
+  it("treats an MCP server as context-costly regardless of tokens", () => {
+    const c = normalizeLocalCache(
+      entry({
+        tokens: { "claude-opus-4-7": { always_on: 50, on_invoke: 10 } },
+        components: {
+          commands: [],
+          skills: [],
+          hooks: [],
+          mcpServers: ["demo-server"],
+          lspServers: [],
+        },
+      }),
+      { key: "demo-plugin@other", trustDefault: "community", refModels: REF_MODELS },
+    );
+    expect(c.bundles.mcpServers).toEqual(["demo-server"]);
+    expect(c.contextCostFlag).toBe(true);
+  });
+
+  it("maps bare event-name string hooks best-effort without throwing", () => {
+    const c = normalizeLocalCache(
+      entry({
+        components: {
+          commands: [],
+          skills: [],
+          hooks: ["PreToolUse", "SessionStart"],
+          mcpServers: [],
+          lspServers: [],
+        },
+      }),
+      { key: "demo-plugin@other", trustDefault: "community", refModels: REF_MODELS },
+    );
+    expect(c.bundles.hooks).toEqual([{ event: "PreToolUse" }, { event: "SessionStart" }]);
+  });
+
+  it("falls back to the largest always_on when no ref model matches", () => {
+    const c = normalizeLocalCache(entry(), {
+      key: "demo-plugin@other",
+      trustDefault: "community",
+      refModels: ["nonexistent-model"],
+    });
+    expect(c.contextTokens).toBe(1216); // largest always_on present
+  });
+
+  it("throws NormalizeError on a malformed entry (missing plugin)", () => {
+    expect(() =>
+      normalizeLocalCache(
+        { tokens: {}, components: {} },
+        { key: "x@official", trustDefault: "community", refModels: REF_MODELS },
+      ),
+    ).toThrow(NormalizeError);
+  });
+
+  it("throws NormalizeError on a key without @marketplace", () => {
+    expect(() =>
+      normalizeLocalCache(entry(), {
+        key: "no-marketplace",
+        trustDefault: "community",
+        refModels: REF_MODELS,
+      }),
+    ).toThrow(NormalizeError);
   });
 });
 
@@ -187,5 +329,66 @@ describe("sync + search (PRD §4.1, §8)", () => {
     const report = await sync(db, config);
     expect(report.sources[0]?.error).toBeDefined();
     expect(report.newIndexVersion).toBeDefined();
+  });
+
+  it("ingests a local-cache fixture, persists contextTokens, and keys by @-id (PRD §4.1)", async () => {
+    const fixture = join(dir, "plugin-catalog-cache.json");
+    writeFileSync(
+      fixture,
+      JSON.stringify({
+        version: 1,
+        fetchedAt: "2026-06-12T00:00:00Z",
+        catalog: {
+          generated_at: "2026-06-12T00:00:00Z",
+          marketplace_sha: "abc",
+          models: ["claude-opus-4-7", "claude-sonnet-4-6"],
+          plugins: {
+            "sec-plugin@claude-plugins-official": {
+              plugin: "sec-plugin",
+              tokens: {
+                "claude-opus-4-7": { always_on: 1600, on_invoke: 9000 },
+                "claude-sonnet-4-6": { always_on: 1200, on_invoke: 7000 },
+              },
+              components: { commands: [], agents: [], skills: [], hooks: [], mcpServers: [], lspServers: [] },
+              marketplace_entry: { name: "sec-plugin", description: "security tooling", category: "security" },
+              version: "2.0.0",
+            },
+            "bad-entry@claude-plugins-official": {
+              // malformed: no plugin name → must be skipped-loud
+              tokens: {},
+              components: {},
+            },
+          },
+        },
+      }),
+    );
+
+    const config = {
+      ...loadConfig(),
+      marketplaces: [
+        {
+          name: "local-cli-cache",
+          gitUrl: fixture,
+          kind: "local-cache" as const,
+          trustDefault: "community" as const,
+          enabled: true,
+        },
+      ],
+    };
+
+    const report = await sync(db, config);
+    expect(report.sources[0]?.parsed).toBe(1);
+    expect(report.sources[0]?.skipped).toBe(1);
+
+    const all = getAllComponents(db);
+    expect(all.map((c) => c.id)).toEqual(["sec-plugin@claude-plugins-official"]);
+
+    // contextTokens persisted and reads back from the index.
+    const stored = getComponent(db, "sec-plugin@claude-plugins-official");
+    expect(stored?.contextTokens).toBe(1600);
+    expect(stored?.contextCostFlag).toBe(true); // 1600 >= 1500
+    expect(stored?.trustTier).toBe("official");
+    expect(stored?.marketplaceId).toBe("claude-plugins-official");
+    expect(stored?.categoryTags).toEqual(["security"]);
   });
 });

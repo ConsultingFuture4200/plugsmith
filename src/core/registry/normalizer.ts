@@ -180,6 +180,10 @@ function buildComponent(args: {
   version?: string | undefined;
   author?: string | undefined;
   license?: string | undefined;
+  /** Always-on token cost (ref model) from the local cache, where declared (PRD §4.1). */
+  contextTokens?: number | undefined;
+  /** When set, OR'd into the derived context-cost flag (local cache: >=1500 tokens). */
+  forceContextCostly?: boolean | undefined;
 }): Component {
   const categoryTags = tagsToCategories(args.tags);
   let contextCostFlag = deriveContextCost(args.bundles);
@@ -187,6 +191,9 @@ function buildComponent(args: {
   // granted a large tool surface is treated as context-costly even without an
   // MCP server or always-on hook.
   if (args.allowedTools && args.allowedTools.length >= 8) contextCostFlag = true;
+  // Refine with the declared always-on schema size (PRD §4.1): a large token
+  // footprint is context-costly even without an MCP server or always-on hook.
+  if (args.forceContextCostly) contextCostFlag = true;
 
   const component: Component = {
     id: args.id,
@@ -200,6 +207,7 @@ function buildComponent(args: {
     compatibility: args.compatibility,
   };
   if (args.description != null) component.description = args.description;
+  if (args.contextTokens != null) component.contextTokens = args.contextTokens;
   if (args.allowedTools != null) component.allowedTools = args.allowedTools;
   if (args.version != null) component.version = args.version;
   if (args.author != null) component.author = args.author;
@@ -310,6 +318,207 @@ export function normalizeOfficial(raw: unknown, marketplaceId: string): Componen
     version: typeof entry.version === "string" ? entry.version : undefined,
     author: typeof entry.author === "string" ? entry.author : undefined,
     license: typeof entry.license === "string" ? entry.license : undefined,
+  });
+}
+
+/**
+ * One ENTRY in the local Claude Code catalog cache
+ * (`~/.claude/plugins/plugin-catalog-cache.json` → `catalog.plugins[key]`).
+ * Keyed by `<name>@<marketplace>`; values mirror the cache's confirmed shape.
+ */
+interface LocalCacheEntry {
+  plugin?: unknown;
+  tokens?: unknown; // { "<model>": { always_on, on_invoke } }
+  components?: {
+    commands?: unknown; // [{ name, chars }]
+    agents?: unknown;
+    skills?: unknown; // [{ name, chars: { always_on, on_invoke } }]
+    hooks?: unknown; // bare event-name strings (observed) / objects / nested (defensive)
+    mcpServers?: unknown; // string[]
+    lspServers?: unknown; // ignored
+  };
+  marketplace_entry?: {
+    name?: unknown;
+    description?: unknown;
+    category?: unknown;
+    keywords?: unknown;
+    tags?: unknown;
+    version?: unknown;
+    author?: unknown;
+  };
+  version?: unknown;
+  source?: unknown;
+}
+
+/** Options for the local-cache adapter (PRD §4.1, Milestone A/B). */
+export interface NormalizeLocalCacheOptions {
+  /** The full `<name>@<marketplace>` cache key — becomes Component.id (Milestone B reconciliation). */
+  key: string;
+  /** Default trust tier for non-official marketplaces (from config). */
+  trustDefault: TrustTier;
+  /** Reference models from `catalog.models`; first present `always_on` is used. */
+  refModels?: string[];
+}
+
+/** Pull `{name}`/`{chars}` component names out of a cache component array. */
+function cacheComponentNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const names: string[] = [];
+  for (const el of value) {
+    if (typeof el === "string") names.push(el);
+    else if (el && typeof el === "object" && typeof (el as { name?: unknown }).name === "string") {
+      names.push((el as { name: string }).name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Normalize the cache's `components.hooks` into {event, matcher?} entries
+ * BEST-EFFORT (PRD §4.1 open spike). The shape is under-specified: observed
+ * elements are bare event-name strings, but objects (`{event}`/`{matcher}`) and
+ * nested `{hooks:[...]}` forms are handled defensively. An unrecognized element
+ * keeps event best-effort with matcher undefined and NEVER throws on hook shape.
+ */
+function localCacheHooks(value: unknown): ComponentBundles["hooks"] {
+  if (!Array.isArray(value)) return [];
+  const hooks: ComponentBundles["hooks"] = [];
+  for (const el of value) {
+    if (typeof el === "string") {
+      hooks.push({ event: el });
+      continue;
+    }
+    if (el && typeof el === "object") {
+      const obj = el as { event?: unknown; matcher?: unknown; hooks?: unknown };
+      // Nested `{ hooks: [...] }` form: recurse, inheriting the outer event if any.
+      if (Array.isArray(obj.hooks)) {
+        const event = typeof obj.event === "string" ? obj.event : "unknown";
+        const matcher = typeof obj.matcher === "string" ? obj.matcher : undefined;
+        for (const inner of obj.hooks) {
+          if (typeof inner === "string") {
+            hooks.push(matcher != null ? { event, matcher: inner } : { event, matcher: undefined });
+          } else {
+            hooks.push(matcher != null ? { event, matcher } : { event });
+          }
+        }
+        continue;
+      }
+      const event = typeof obj.event === "string" ? obj.event : "unknown";
+      const matcher = typeof obj.matcher === "string" ? obj.matcher : undefined;
+      hooks.push(matcher != null ? { event, matcher } : { event });
+      continue;
+    }
+    // Unrecognized element shape: best-effort, never throw.
+    hooks.push({ event: "unknown" });
+  }
+  return hooks;
+}
+
+/**
+ * Pick the reference always-on token cost from the entry's per-model `tokens`
+ * (PRD §4.1). Prefer the first ref model present; otherwise fall back to the
+ * largest `always_on` declared. Returns undefined when no usable value exists.
+ */
+function refContextTokens(tokens: unknown, refModels: string[]): number | undefined {
+  if (!tokens || typeof tokens !== "object") return undefined;
+  const byModel = tokens as Record<string, unknown>;
+  const alwaysOn = (model: unknown): number | undefined => {
+    if (!model || typeof model !== "object") return undefined;
+    const v = (model as { always_on?: unknown }).always_on;
+    return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+  };
+  for (const ref of refModels) {
+    const v = alwaysOn(byModel[ref]);
+    if (v != null) return v;
+  }
+  let max: number | undefined;
+  for (const model of Object.values(byModel)) {
+    const v = alwaysOn(model);
+    if (v != null && (max == null || v > max)) max = v;
+  }
+  return max;
+}
+
+/** Token threshold at/above which an always-on schema size is context-costly (PRD §4.1). */
+const CONTEXT_TOKEN_COSTLY = 1500;
+
+/**
+ * Local-cache adapter (PRD §4.1, Milestone A/B). Maps one cache ENTRY into a
+ * Component using REAL per-model token costs from the local Claude Code catalog.
+ *
+ * Critical: Component.id is set to the FULL `<name>@<marketplace>` cache KEY (not
+ * the bare plugin name) — installed-plugin refs use exactly this form, so
+ * Milestone B reconciliation resolves real installed plugins against the index.
+ *
+ * trustTier: `official` for the Anthropic-managed marketplace,
+ * `partner` for the canonical source, else the configured community default.
+ * `contextTokens` is the ref model's `always_on`; the context-cost flag is true
+ * when that meets the token threshold, or an MCP server / hook is present.
+ *
+ * Throws `NormalizeError` on a malformed ENTRY (missing plugin name / bad key)
+ * so `sync` can skip-loud (PRD §8). Hook-shape quirks never throw (see step 5).
+ */
+export function normalizeLocalCache(raw: unknown, opts: NormalizeLocalCacheOptions): Component {
+  if (!raw || typeof raw !== "object") {
+    throw new NormalizeError("local-cache entry is not an object");
+  }
+  const entry = raw as LocalCacheEntry;
+  if (typeof entry.plugin !== "string" || entry.plugin.trim() === "") {
+    throw new NormalizeError("local-cache entry missing required 'plugin'");
+  }
+  const name = entry.plugin.trim();
+
+  const atIndex = opts.key.indexOf("@");
+  if (atIndex <= 0 || atIndex === opts.key.length - 1) {
+    throw new NormalizeError(`local-cache key not '<name>@<marketplace>': ${opts.key}`);
+  }
+  const marketplace = opts.key.slice(atIndex + 1);
+  const trustTier: TrustTier =
+    marketplace === "claude-plugins-official"
+      ? "official"
+      : marketplace === "canonical-catalog"
+        ? "partner"
+        : opts.trustDefault;
+
+  const me = entry.marketplace_entry ?? {};
+  const tags: string[] = [];
+  if (typeof me.category === "string") tags.push(me.category);
+  tags.push(...asStringArray(me.keywords));
+  tags.push(...asStringArray(me.tags));
+
+  const components = entry.components ?? {};
+  const bundles: ComponentBundles = {
+    skills: cacheComponentNames(components.skills),
+    commands: cacheComponentNames(components.commands),
+    hooks: localCacheHooks(components.hooks),
+    mcpServers: asStringArray(components.mcpServers),
+  };
+
+  const contextTokens = refContextTokens(entry.tokens, opts.refModels ?? []);
+  const forceContextCostly = contextTokens != null && contextTokens >= CONTEXT_TOKEN_COSTLY;
+
+  const version =
+    typeof entry.version === "string"
+      ? entry.version
+      : typeof me.version === "string"
+        ? me.version
+        : undefined;
+
+  return buildComponent({
+    id: opts.key,
+    name,
+    marketplaceId: marketplace,
+    trustTier,
+    description: typeof me.description === "string" ? me.description : undefined,
+    tags,
+    bundles,
+    compatibility: [],
+    allowedTools: undefined,
+    version,
+    author: typeof me.author === "string" ? me.author : undefined,
+    license: undefined,
+    contextTokens,
+    forceContextCostly,
   });
 }
 

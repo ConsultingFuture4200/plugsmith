@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import type { CcharnessConfig, MarketplaceConfig } from "../config.js";
 import { searchComponents, upsertComponents } from "../db/components.js";
 import { type DB, indexVersion, setMeta } from "../db/store.js";
@@ -6,6 +7,7 @@ import type { Component } from "../types.js";
 import {
   NormalizeError,
   normalizeCanonical,
+  normalizeLocalCache,
   normalizeOfficial,
   resolveCategoryKey,
 } from "./normalizer.js";
@@ -51,9 +53,51 @@ async function loadSource(gitUrl: string): Promise<unknown> {
     if (!res.ok) throw new Error(`fetch ${gitUrl} → HTTP ${res.status}`);
     return (await res.json()) as unknown;
   }
-  const path = gitUrl.startsWith("file:") ? new URL(gitUrl).pathname : gitUrl;
+  let path = gitUrl.startsWith("file:") ? new URL(gitUrl).pathname : gitUrl;
+  // Expand a leading "~" to the home dir so the local-cache path resolves.
+  if (path === "~" || path.startsWith("~/")) path = homedir() + path.slice(1);
   if (!existsSync(path)) throw new Error(`source not found: ${path}`);
   return JSON.parse(readFileSync(path, "utf8")) as unknown;
+}
+
+/**
+ * Ingest the local Claude Code catalog cache (`kind: "local-cache"`, PRD §4.1).
+ * `catalog.plugins` is a map keyed by `<name>@<marketplace>`; each entry is
+ * normalized skip-loud, with the full key carried into Component.id so Milestone
+ * B reconciliation resolves real installed plugins. The reference models come
+ * from `catalog.models` so token costs use the operator's real per-model schema.
+ */
+function normalizeLocalCacheSource(
+  mc: MarketplaceConfig,
+  raw: unknown,
+): { parsed: Component[]; skipped: number } {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const catalog =
+    root.catalog && typeof root.catalog === "object"
+      ? (root.catalog as Record<string, unknown>)
+      : undefined;
+  if (!catalog || typeof catalog.plugins !== "object" || catalog.plugins == null) {
+    throw new Error("local-cache source has no catalog.plugins object");
+  }
+  const refModels = Array.isArray(catalog.models)
+    ? catalog.models.filter((m): m is string => typeof m === "string")
+    : [];
+  const plugins = catalog.plugins as Record<string, unknown>;
+
+  const parsed: Component[] = [];
+  let skipped = 0;
+  for (const [key, value] of Object.entries(plugins)) {
+    try {
+      parsed.push(
+        normalizeLocalCache(value, { key, trustDefault: mc.trustDefault, refModels }),
+      );
+    } catch (err) {
+      skipped += 1;
+      const reason = err instanceof NormalizeError ? err.message : String(err);
+      console.error(`ccharness sync: skipped malformed entry in ${mc.name}: ${reason}`);
+    }
+  }
+  return { parsed, skipped };
 }
 
 /**
@@ -119,6 +163,32 @@ function upsertMarketplace(db: DB, id: string, mc: MarketplaceConfig, syncedAt: 
 }
 
 /**
+ * Register a marketplace row for each distinct `marketplaceId` carried by the
+ * given components (PRD §7). Local-cache components reference the real per-plugin
+ * marketplace (e.g. `claude-plugins-official`) rather than the `local-cli-cache`
+ * source, so those rows must exist for the components FK. Trust default mirrors
+ * the source; the canonical/official ids keep their natural trust tier.
+ */
+function upsertReferencedMarketplaces(
+  db: DB,
+  components: Component[],
+  mc: MarketplaceConfig,
+  syncedAt: string,
+): void {
+  const seen = new Set<string>();
+  for (const c of components) {
+    if (seen.has(c.marketplaceId)) continue;
+    seen.add(c.marketplaceId);
+    upsertMarketplace(
+      db,
+      c.marketplaceId,
+      { name: c.marketplaceId, gitUrl: mc.gitUrl, kind: mc.kind, trustDefault: c.trustTier, enabled: true },
+      syncedAt,
+    );
+  }
+}
+
+/**
  * Sync all enabled marketplaces into the index (PRD §4.1). Each source is
  * isolated: a fetch/parse failure or a run of malformed entries skips loudly
  * without failing the whole run. On completion the index version is bumped,
@@ -133,10 +203,18 @@ export async function sync(db: DB, config: CcharnessConfig): Promise<SyncReport>
     const id = marketplaceId(mc.name);
     try {
       const raw = await loadSource(mc.gitUrl);
-      const entries = extractEntries(raw);
-      const { parsed, skipped } = normalizeSource(mc, id, entries);
+      const { parsed, skipped } =
+        mc.kind === "local-cache"
+          ? normalizeLocalCacheSource(mc, raw)
+          : normalizeSource(mc, id, extractEntries(raw));
       const stamped = parsed.map((c) => ({ ...c, lastSynced: syncedAt }));
       upsertMarketplace(db, id, mc, syncedAt);
+      // Local-cache components carry the real per-plugin marketplace id (from the
+      // `<name>@<marketplace>` key), not this source's id, so each referenced
+      // marketplace needs a row to satisfy the components FK (PRD §7).
+      if (mc.kind === "local-cache") {
+        upsertReferencedMarketplaces(db, stamped, mc, syncedAt);
+      }
       upsertComponents(db, stamped);
       sources.push({ marketplace: mc.name, parsed: parsed.length, skipped });
     } catch (err) {

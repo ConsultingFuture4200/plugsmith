@@ -54,6 +54,13 @@ export interface Component {
    * size where declared (PRD §4.1).
    */
   contextCostFlag: boolean;
+  /**
+   * Persistent (always-on) context cost in tokens for a reference model, taken
+   * from the local cache's declared schema size. Used to refine the estimate
+   * beyond the boolean flag (PRD §4.1 "use declared schema size to refine the
+   * estimate"). Undefined when the source declares no per-model token cost.
+   */
+  contextTokens?: number;
   /** Category keys for which this component is a singleton occupant (PRD §4.4). */
   singletonCategories: string[];
   /**
@@ -130,6 +137,8 @@ export interface Recommendation {
   contextCostSummary: {
     costlyCount: number;
     tightRequested: boolean;
+    /** Summed always-on token cost across the costly components, where known (PRD §4.1). */
+    tokenBudget?: number;
     note?: string;
   };
   provider: string;
