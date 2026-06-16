@@ -56,7 +56,9 @@ export function upsertBlock(original: string | null, block: string): UpsertResul
   const endIdx = original.indexOf(END);
 
   // A well-formed existing block: replace ONLY its span, preserve the rest.
-  if (startMatch && startMatch.index !== undefined && endIdx !== -1) {
+  // The end MUST come after the start — an inverted/orphaned END before a START
+  // falls through to the safe append path rather than corrupting the file.
+  if (startMatch && startMatch.index !== undefined && endIdx > startMatch.index) {
     const start = startMatch.index;
     const after = endIdx + END.length;
     const before = original.slice(0, start);

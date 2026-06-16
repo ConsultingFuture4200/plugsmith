@@ -39,4 +39,13 @@ describe("upsertBlock", () => {
     const { content } = upsertBlock("", block);
     expect(content).toContain("ccharness:start");
   });
+
+  it("does NOT replace when an end delimiter precedes a start (inverted/orphaned)", () => {
+    // A corrupted file with END before START must fall through to safe append,
+    // never the replace branch (which would splice between them and corrupt it).
+    const original = `<!-- ccharness:end -->\nrogue\n<!-- ccharness:start v0.1.0 -->\n`;
+    const { content, mode } = upsertBlock(original, block);
+    expect(mode).toBe("appended");
+    expect(content.startsWith(original)).toBe(true);
+  });
 });

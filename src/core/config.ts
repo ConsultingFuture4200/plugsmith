@@ -56,10 +56,16 @@ export const DEFAULT_CONFIG: CcharnessConfig = {
 
 /**
  * Load config from `~/.ccharness/config.yaml`, falling back to DEFAULT_CONFIG.
- * Shallow-merges top-level keys so a partial user config still works.
+ * Merges top-level keys so a partial user config still works. A key written
+ * but left blank in YAML (parsed as `null`) must NOT clobber the default — e.g.
+ * `anthropic:` with no value should keep the default block, not null it out.
  */
 export function loadConfig(path = join(configDir(), "config.yaml")): CcharnessConfig {
   if (!existsSync(path)) return DEFAULT_CONFIG;
-  const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
-  return { ...DEFAULT_CONFIG, ...raw };
+  const raw = (parseYaml(readFileSync(path, "utf8")) ?? {}) as Record<string, unknown>;
+  // Drop null/undefined values so a blank YAML key falls back to the default.
+  const provided = Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => v !== null && v !== undefined),
+  );
+  return { ...DEFAULT_CONFIG, ...provided };
 }
