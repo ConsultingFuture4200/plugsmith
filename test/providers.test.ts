@@ -87,6 +87,17 @@ describe("anthropicProvider (PRD §4.7)", () => {
     expect(proposal.lines[0]?.componentRef).toBe("mem-a");
   });
 
+  it("strips a <think> reasoning block on the first attempt (no repair)", async () => {
+    // qwen3 and similar leak <think>…</think> intermittently even under a JSON
+    // hint — a well-formed proposal wrapped in reasoning must not count as a miss.
+    const thinky = `<think>The task needs memory, so install mem-a.</think>\n${GOOD_BODY}`;
+    const q = queuedFetch([localResponse(thinky)]);
+    const provider = localProvider({ baseUrl: "http://localhost:11434/v1", model: "qwen3:4b", fetchImpl: q.fetch });
+    const proposal = await provider.propose(INPUT);
+    expect(proposal.lines[0]?.componentRef).toBe("mem-a");
+    expect(q.calls()).toBe(1);
+  });
+
   it("repairs once when the first response is not schema-valid", async () => {
     const q = queuedFetch([anthropicResponse(BAD_BODY), anthropicResponse(GOOD_BODY)]);
     const provider = anthropicProvider({ model: "claude-opus-4-8", apiKeyEnv, fetchImpl: q.fetch });

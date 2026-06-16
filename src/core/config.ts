@@ -34,7 +34,13 @@ export function configDir(): string {
 export const DEFAULT_CONFIG: CcharnessConfig = {
   defaultProvider: "local",
   anthropic: { model: "claude-opus-4-8", apiKeyEnv: "ANTHROPIC_API_KEY" },
-  local: { baseUrl: "http://localhost:11434/v1", model: "qwen3:4b" },
+  // qwen2.5:3b chosen over qwen3:4b as the default: the Milestone-0 validation
+  // run showed qwen3:4b is non-deterministic at strict JSON (intermittent hard
+  // failures even after the repair retry, from leaked <think> traces), while
+  // qwen2.5:3b never hard-failed (always recovered on the single repair). See
+  // docs/milestone-0-findings.md. `<think>` stripping (providers/shared.ts) also
+  // makes qwen3:4b viable if you prefer it.
+  local: { baseUrl: "http://localhost:11434/v1", model: "qwen2.5:3b" },
   marketplaces: [
     // Local Claude Code catalog cache — the primary index source with REAL
     // per-model token costs over the operator's installed marketplaces (PRD §4.1).
@@ -45,29 +51,30 @@ export const DEFAULT_CONFIG: CcharnessConfig = {
       trustDefault: "community",
       enabled: true,
     },
-    // Canonical, richest metadata (tonsofskills / ccpi) — PRD §1.1.
+    // Remote sources are DISABLED by default (enabled:false) pending verification.
+    // The Milestone-0 run found two things: (1) a `gitUrl` must be the RAW
+    // marketplace.json, not a GitHub repo page (a repo page returns HTML and the
+    // source skips-loud); the canonical raw path below is confirmed. (2) Each
+    // marketplace's JSON shape needs its adapter verified before enabling — the
+    // canonical file is a 448-entry ARRAY with rich `keywords` (better category
+    // mapping than the local cache), so it needs an adapter pass. Until then the
+    // local-cli-cache above is the working primary. See docs/milestone-0-findings.md.
     {
       name: "canonical-catalog",
-      gitUrl: "https://github.com/jeremylongshore/claude-code-plugins-plus-skills",
+      gitUrl:
+        "https://raw.githubusercontent.com/jeremylongshore/claude-code-plugins-plus-skills/main/.claude-plugin/marketplace.extended.json",
       kind: "canonical",
       trustDefault: "partner",
-      enabled: true,
+      enabled: false,
     },
-    // Anthropic-managed official directory; also one of the operator's trusted sources.
-    {
-      name: "claude-plugins-official",
-      gitUrl: "https://github.com/anthropics/claude-plugins-official",
-      kind: "official",
-      trustDefault: "official",
-      enabled: true,
-    },
-    // Operator's existing trusted marketplaces (from ~/.claude known_marketplaces).
-    // Standard .claude-plugin/marketplace.json shape → the `official` adapter.
-    { name: "parslee-marketplace", gitUrl: "https://github.com/Parslee-ai/claude-code-plugins", kind: "official", trustDefault: "community", enabled: true },
-    { name: "context-mode", gitUrl: "https://github.com/mksglu/context-mode", kind: "official", trustDefault: "community", enabled: true },
-    { name: "understand-anything", gitUrl: "https://github.com/Lum1104/Understand-Anything", kind: "official", trustDefault: "community", enabled: true },
-    { name: "agentmemory", gitUrl: "https://github.com/rohitg00/agentmemory", kind: "official", trustDefault: "community", enabled: true },
-    { name: "staqs", gitUrl: "https://github.com/staqsIO/terminalhire", kind: "official", trustDefault: "community", enabled: true },
+    // Operator's other trusted marketplaces (from ~/.claude known_marketplaces).
+    // NONE are in the local cache, so their installed plugins won't resolve until
+    // these are enabled with correct raw .claude-plugin/marketplace.json URLs.
+    { name: "parslee-marketplace", gitUrl: "https://raw.githubusercontent.com/Parslee-ai/claude-code-plugins/main/.claude-plugin/marketplace.json", kind: "official", trustDefault: "community", enabled: false },
+    { name: "context-mode", gitUrl: "https://raw.githubusercontent.com/mksglu/context-mode/main/.claude-plugin/marketplace.json", kind: "official", trustDefault: "community", enabled: false },
+    { name: "understand-anything", gitUrl: "https://raw.githubusercontent.com/Lum1104/Understand-Anything/main/.claude-plugin/marketplace.json", kind: "official", trustDefault: "community", enabled: false },
+    { name: "agentmemory", gitUrl: "https://raw.githubusercontent.com/rohitg00/agentmemory/main/.claude-plugin/marketplace.json", kind: "official", trustDefault: "community", enabled: false },
+    { name: "staqs", gitUrl: "https://raw.githubusercontent.com/staqsIO/terminalhire/main/.claude-plugin/marketplace.json", kind: "official", trustDefault: "community", enabled: false },
   ],
   prefilterBreadth: "balanced",
 };

@@ -9,10 +9,21 @@ what to **enable**, **install**, or **turn off**, flagging conflicts (two memory
 plugins) and context-cost (hook-/MCP-heavy stacks) as facts the model can't wave
 away.
 
-> Status: **v0.7.0, scaffold.** Core types, SQLite schema, the CLAUDE.md
-> managed-block writer, and the conflict checker are implemented; sync,
-> inventory, the recommender pipeline, and the dashboard are scaffolded per the
-> plan below. See [`docs/`](docs/) for the full PRD and implementation plan.
+> Status: **v0.7.0 — MVP implemented end-to-end and validated on real data.**
+> All six commands (`sync`/`search`/`status`/`recommend`/`gen-claudemd`/`serve`)
+> work; the primary index source is the local Claude Code catalog cache
+> (`~/.claude/plugins/plugin-catalog-cache.json`, ingested with **real per-model
+> token costs**). Validated against the operator's real 223-plugin catalog and a
+> local model (Ollama): grounding drops invented plugins, conflict/context-cost
+> fire on real data, caching gives free re-runs. See
+> [`docs/milestone-0-findings.md`](docs/milestone-0-findings.md) for the honest
+> real-data findings (small-model JSON reliability, single-marketplace data
+> coverage) and [`docs/`](docs/) for the PRD and implementation plan.
+>
+> Known limits (documented, not hidden): the local cache holds only the
+> marketplaces you've pulled; remote sources are `enabled:false` pending a
+> verified adapter; the default local model is `qwen2.5:3b` (reliable strict
+> JSON); the Anthropic provider needs an API key to run.
 
 ## Why this exists
 

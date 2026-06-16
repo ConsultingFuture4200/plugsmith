@@ -88,6 +88,20 @@ const TAG_TO_CATEGORY: Record<string, string> = {
   formatting: "output-styling",
   styling: "output-styling",
   output: "output-styling",
+  // Local-cache `category` vocabulary (observed in plugin-catalog-cache.json,
+  // PRD §4.1). The cache's category field is the only reliable mapping signal it
+  // carries (keywords/tags are effectively absent there).
+  database: "integrations",
+  deployment: "integrations",
+  design: "output-styling",
+  location: "domain",
+  learning: "domain",
+  math: "domain",
+  // NOTE: the cache's generic "development"/"productivity" categories (~60% of
+  // entries) have no precise taxonomy home and are deliberately left unmapped —
+  // mapping them to any single key would flood it. Richer per-plugin mapping
+  // comes from the canonical extended.json `keywords` (98% coverage); see
+  // docs/milestone-0-findings.md.
 };
 
 const SINGLETON_KEYS = new Set(singletonKeys());
@@ -493,6 +507,12 @@ export function normalizeLocalCache(raw: unknown, opts: NormalizeLocalCacheOptio
     hooks: localCacheHooks(components.hooks),
     mcpServers: asStringArray(components.mcpServers),
   };
+
+  // A plugin that bundles an MCP server IS category 11 (Integrations / MCP
+  // connectors) by the taxonomy's own definition (PRD §3) — tag it so a
+  // task needing an integration surfaces it, even when the cache's category
+  // string didn't map. ~46% of cached plugins ship an MCP server.
+  if (bundles.mcpServers.length > 0) tags.push("integrations");
 
   const contextTokens = refContextTokens(entry.tokens, opts.refModels ?? []);
   const forceContextCostly = contextTokens != null && contextTokens >= CONTEXT_TOKEN_COSTLY;

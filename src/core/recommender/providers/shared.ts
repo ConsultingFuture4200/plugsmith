@@ -84,11 +84,27 @@ export function estimateInputTokens(input: ProposalInput): number {
   return Math.ceil(chars / 4);
 }
 
-/** Strip a ```json … ``` (or bare ```) fence if the model wrapped its output. */
+/**
+ * Strip reasoning/markdown wrappers a model may emit around its JSON. Handles,
+ * in order: `<think>…</think>` reasoning blocks (qwen3 and similar leak these
+ * intermittently — the validation run showed qwen3:4b emitting them even under
+ * a json_object hint), a surrounding ```json fence, and finally a fall-back to
+ * the outermost `{…}` object substring. The repair-retry discipline still backs
+ * this up; this just keeps a well-formed proposal wrapped in reasoning from
+ * being treated as a failure.
+ */
 function stripFence(text: string): string {
-  const trimmed = text.trim();
-  const fence = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return fence?.[1]?.trim() ?? trimmed;
+  let t = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // A dangling, unclosed <think> (truncated reasoning) — drop everything up to
+  // the first opening brace.
+  t = t.replace(/<\/?think>/gi, "").trim();
+  const fence = /```(?:json)?\s*([\s\S]*?)\s*```/i.exec(t);
+  if (fence?.[1]) return fence[1].trim();
+  // Last resort: the outermost JSON object, ignoring any prose around it.
+  const first = t.indexOf("{");
+  const last = t.lastIndexOf("}");
+  if (first !== -1 && last > first) return t.slice(first, last + 1).trim();
+  return t;
 }
 
 /**
