@@ -2,6 +2,8 @@
 import { Command } from "commander";
 import { loadConfig } from "../core/config.js";
 import { openStore } from "../core/db/store.js";
+import { search, sync } from "../core/registry/sync.js";
+import type { Component } from "../core/types.js";
 
 /**
  * `ccharness` CLI (PRD §5) — thin wrapper over `@ccharness/core`. Source of
@@ -25,9 +27,16 @@ program
   .description("refresh the index from configured marketplaces (PRD §4.1)")
   .action(async () => {
     const db = openStore();
-    const _config = loadConfig();
-    void db;
-    notImplemented("sync", "Milestone A");
+    const config = loadConfig();
+    const report = await sync(db, config);
+    for (const source of report.sources) {
+      if (source.error) {
+        console.log(`${source.marketplace}: failed — ${source.error}`);
+      } else {
+        console.log(`${source.marketplace}: ${source.parsed} parsed, ${source.skipped} skipped`);
+      }
+    }
+    console.log(`index version → ${report.newIndexVersion}`);
   });
 
 program
@@ -35,7 +44,17 @@ program
   .argument("<query>")
   .option("-c, --category <category>", "filter by category id or key")
   .description("query the index (PRD §4.1)")
-  .action(() => notImplemented("search", "Milestone A"));
+  .action((query: string, opts: { category?: string }) => {
+    const db = openStore();
+    const results = search(db, query, opts.category != null ? { category: opts.category } : {});
+    if (results.length === 0) {
+      console.log("no matches");
+      return;
+    }
+    for (const c of results) {
+      console.log(formatResult(c));
+    }
+  });
 
 program
   .command("status")
@@ -67,6 +86,13 @@ program
   .option("--port <n>", "port", "4575")
   .description("launch the read-only dashboard on localhost (PRD §4.6)")
   .action(() => notImplemented("serve", "Milestone E"));
+
+/** One-line search result: name, trust tier, categories, context-cost (PRD §4.1). */
+function formatResult(c: Component): string {
+  const categories = c.categoryTags.length > 0 ? c.categoryTags.join(", ") : "uncategorized";
+  const cost = c.contextCostFlag ? "context-costly" : "light";
+  return `${c.name}  [${c.trustTier}]  ${categories}  (${cost})`;
+}
 
 function notImplemented(cmd: string, milestone: string): never {
   console.error(`ccharness ${cmd}: not yet implemented (${milestone}).`);

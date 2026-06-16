@@ -25,8 +25,20 @@ export {
 } from "./db/components.js";
 
 // Registry (Milestone A)
-export { sync, search, type SyncReport } from "./registry/sync.js";
-export { deriveContextCost, normalizeCanonical, normalizeOfficial } from "./registry/normalizer.js";
+export {
+  sync,
+  search,
+  type SyncReport,
+  type SyncSourceReport,
+  type SearchQueryOptions,
+} from "./registry/sync.js";
+export {
+  deriveContextCost,
+  normalizeCanonical,
+  normalizeOfficial,
+  resolveCategoryKey,
+  NormalizeError,
+} from "./registry/normalizer.js";
 
 // Inventory (Milestone B)
 export { scanInventory, reconcile, type ScanReport } from "./inventory/scanner.js";
