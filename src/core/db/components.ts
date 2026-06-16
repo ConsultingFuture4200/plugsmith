@@ -1,5 +1,5 @@
-import type { DB } from "./store.js";
 import type { Component, ComponentBundles, InventoryItem, Scope, TrustTier } from "../types.js";
+import type { DB } from "./store.js";
 
 /**
  * Repository layer over the `components` table (PRD §7, §4.1).
@@ -118,9 +118,7 @@ export function upsertComponents(db: DB, components: Component[]): void {
 
 /** All components in the index, name-ordered (PRD §4.1). */
 export function getAllComponents(db: DB): Component[] {
-  const rows = db
-    .prepare("SELECT * FROM components ORDER BY name")
-    .all() as ComponentRow[];
+  const rows = db.prepare("SELECT * FROM components ORDER BY name").all() as ComponentRow[];
   return rows.map(rowToComponent);
 }
 
@@ -169,14 +167,52 @@ interface InventoryRow {
 }
 
 /**
+ * Replace the persisted inventory snapshot (PRD §4.2, §7 `inventory`). The
+ * snapshot is a point-in-time reflection of the scan, so the table is cleared
+ * and rewritten wholesale inside one transaction — a stale row never survives a
+ * fresh scan. `resolved` is an index-join annotation and is NOT persisted here;
+ * it is recomputed on read by callers that reconcile against the live index.
+ */
+export function replaceInventory(db: DB, items: InventoryItem[]): void {
+  const insert = db.prepare(/* sql */ `
+    INSERT INTO inventory (component_ref, scope, project_path, enabled, source_file, scanned_at)
+    VALUES (@component_ref, @scope, @project_path, @enabled, @source_file, @scanned_at)
+    ON CONFLICT(component_ref, scope, project_path) DO UPDATE SET
+      enabled = excluded.enabled,
+      source_file = excluded.source_file,
+      scanned_at = excluded.scanned_at
+  `);
+  const tx = db.transaction((rows: InventoryItem[]) => {
+    db.prepare("DELETE FROM inventory").run();
+    for (const item of rows) {
+      insert.run({
+        component_ref: item.componentRef,
+        scope: item.scope,
+        project_path: item.projectPath ?? null,
+        enabled: item.enabled ? 1 : 0,
+        source_file: item.sourceFile,
+        scanned_at: item.scannedAt,
+      });
+    }
+  });
+  tx(items);
+}
+
+/** Look up a single component by id (PRD §4.1). Undefined when absent. */
+export function getComponent(db: DB, id: string): Component | undefined {
+  const row = db.prepare("SELECT * FROM components WHERE id = ?").get(id) as
+    | ComponentRow
+    | undefined;
+  return row ? rowToComponent(row) : undefined;
+}
+
+/**
  * Read the persisted inventory snapshot (PRD §4.2). Empty is fine — before the
  * first scan there are simply no rows. Resolution against the index is left to
  * the caller (the recommender reconciles separately).
  */
 export function getInventory(db: DB): InventoryItem[] {
-  const rows = db
-    .prepare("SELECT * FROM inventory ORDER BY component_ref")
-    .all() as InventoryRow[];
+  const rows = db.prepare("SELECT * FROM inventory ORDER BY component_ref").all() as InventoryRow[];
   return rows.map((row) => {
     const item: InventoryItem = {
       componentRef: row.component_ref,

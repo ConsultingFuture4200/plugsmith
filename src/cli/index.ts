@@ -2,8 +2,9 @@
 import { Command } from "commander";
 import { loadConfig } from "../core/config.js";
 import { openStore } from "../core/db/store.js";
+import { reconcile, scanInventory } from "../core/inventory/scanner.js";
 import { search, sync } from "../core/registry/sync.js";
-import type { Component } from "../core/types.js";
+import type { Component, InventoryItem, Scope } from "../core/types.js";
 
 /**
  * `ccharness` CLI (PRD §5) — thin wrapper over `@ccharness/core`. Source of
@@ -59,7 +60,19 @@ program
 program
   .command("status")
   .description("show installed + enabled components, annotated (PRD §4.2)")
-  .action(() => notImplemented("status", "Milestone B"));
+  .action(() => {
+    const db = openStore();
+    const report = scanInventory({ projectPath: process.cwd() });
+    const items = reconcile(db, report);
+    if (items.length === 0) {
+      console.log("no installed components found");
+    } else {
+      printStatus(items);
+    }
+    for (const u of report.unreadable) {
+      console.log(`! unreadable: ${u.file} (${u.reason})`);
+    }
+  });
 
 program
   .command("recommend")
@@ -92,6 +105,38 @@ function formatResult(c: Component): string {
   const categories = c.categoryTags.length > 0 ? c.categoryTags.join(", ") : "uncategorized";
   const cost = c.contextCostFlag ? "context-costly" : "light";
   return `${c.name}  [${c.trustTier}]  ${categories}  (${cost})`;
+}
+
+/**
+ * Render the inventory snapshot grouped by scope (PRD §4.2): enabled state,
+ * what each component provides (category tags from the index), and a clear
+ * marker for items not in the index.
+ */
+function printStatus(items: InventoryItem[]): void {
+  const scopes: Scope[] = ["system", "project"];
+  for (const scope of scopes) {
+    const group = items.filter((i) => i.scope === scope);
+    if (group.length === 0) continue;
+    console.log(`\n${scope} scope:`);
+    for (const item of group) {
+      console.log(`  ${formatInventoryItem(item)}`);
+    }
+  }
+}
+
+/** One-line inventory entry: enabled marker, ref, provides, index status. */
+function formatInventoryItem(item: InventoryItem): string {
+  const state = item.enabled ? "[on] " : "[off]";
+  let provides: string;
+  if (item.resolved == null) {
+    provides = "not in index";
+  } else {
+    const tags = item.resolved.categoryTags;
+    const cats = tags.length > 0 ? tags.join(", ") : "uncategorized";
+    const cost = item.resolved.contextCostFlag ? ", context-costly" : "";
+    provides = `${item.resolved.trustTier} — ${cats}${cost}`;
+  }
+  return `${state} ${item.componentRef}  (${provides})`;
 }
 
 function notImplemented(cmd: string, milestone: string): never {

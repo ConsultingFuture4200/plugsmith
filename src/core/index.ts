@@ -18,9 +18,11 @@ export { openStore, defaultDbPath, indexVersion, getMeta, setMeta, type DB } fro
 export {
   upsertComponents,
   getAllComponents,
+  getComponent,
   getComponentsByCategory,
   searchComponents,
   getInventory,
+  replaceInventory,
   type SearchOptions,
 } from "./db/components.js";
 
@@ -41,7 +43,13 @@ export {
 } from "./registry/normalizer.js";
 
 // Inventory (Milestone B)
-export { scanInventory, reconcile, type ScanReport } from "./inventory/scanner.js";
+export {
+  scanInventory,
+  reconcile,
+  type ScanReport,
+  type ScanOptions,
+  type ScanBasePaths,
+} from "./inventory/scanner.js";
 
 // Recommender (Milestone C) — the product
 export {
