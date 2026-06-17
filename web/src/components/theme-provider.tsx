@@ -7,7 +7,7 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const STORAGE_KEY = "ccharness-theme";
+const STORAGE_KEY = "plugsmith-theme";
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 function readInitialTheme(): Theme {

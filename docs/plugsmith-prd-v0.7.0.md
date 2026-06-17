@@ -1,4 +1,4 @@
-# ccharness — Product Requirements Document
+# plugsmith — Product Requirements Document
 
 **Version:** v0.7.0
 **Status:** Draft (scope-locked)
@@ -32,14 +32,14 @@ This is a **personal, local-first CLI tool** for an operator running many Claude
 
 ## 1.1 Prior art & positioning
 
-The ecosystem already contains pieces that overlap parts of this. ccharness is positioned in the gap they leave.
+The ecosystem already contains pieces that overlap parts of this. plugsmith is positioned in the gap they leave.
 
-- **pi-pathfinder** (a *skill*, in the tonsofskills catalog) — scans the marketplace and synthesizes/borrows plugin *patterns* in-session to solve the current task, with transparent reasoning about what it borrowed. It is **ephemeral and in-session**: it does not read your installed state, does not change your configuration, and does not reason about conflicts or context budget. ccharness is the complement: **out-of-session, deterministic, durable** — it recommends a standing configuration (enable/install/disable) relative to what you actually have installed, and produces config (the CLAUDE.md block), not in-session improvisation. "Solve this now by borrowing" vs. "what should my standing toolkit be."
-- **ccpi** (Intent Solutions package manager) — does install/list/upgrade/diagnostics over the canonical catalog. Search is "coming soon"; there is no task→recommendation layer. ccharness can sit *above* ccpi rather than competing: ccpi handles package management, ccharness owns the recommendation intelligence.
+- **pi-pathfinder** (a *skill*, in the tonsofskills catalog) — scans the marketplace and synthesizes/borrows plugin *patterns* in-session to solve the current task, with transparent reasoning about what it borrowed. It is **ephemeral and in-session**: it does not read your installed state, does not change your configuration, and does not reason about conflicts or context budget. plugsmith is the complement: **out-of-session, deterministic, durable** — it recommends a standing configuration (enable/install/disable) relative to what you actually have installed, and produces config (the CLAUDE.md block), not in-session improvisation. "Solve this now by borrowing" vs. "what should my standing toolkit be."
+- **ccpi** (Intent Solutions package manager) — does install/list/upgrade/diagnostics over the canonical catalog. Search is "coming soon"; there is no task→recommendation layer. plugsmith can sit *above* ccpi rather than competing: ccpi handles package management, plugsmith owns the recommendation intelligence.
 - **The canonical catalog** (`marketplace.extended.json`) — a single well-structured JSON the Claude Code CLI itself reads, with enforced frontmatter (`name / description / allowed-tools / version / author / license / compatibility / tags`). This largely solves the registry-normalization problem that earlier drafts treated as the top maintenance risk. See §4.1.
 - **Adjacent overlaps to respect (not rebuild):** `claudebase` (config backup/restore/profiles → our backlogged setup-rehydrate), `claude-reflect` (auto-updates CLAUDE.md from corrections → adjacent to our gen-claudemd), `promptbook`/`token-optimizer` (session analytics → our cut telemetry). These reinforce keeping those features backlogged or out of scope.
 
-**The differentiator, stated plainly:** the manual checklist users currently run in their heads — *don't run two memory plugins, is it still maintained, what's the token overhead of all these tool schemas* — is exactly what ccharness's recommender automates against live inventory. Nobody else does the deconflicted-coherent-stack reasoning. That is the product (§4.3, §4.4).
+**The differentiator, stated plainly:** the manual checklist users currently run in their heads — *don't run two memory plugins, is it still maintained, what's the token overhead of all these tool schemas* — is exactly what plugsmith's recommender automates against live inventory. Nobody else does the deconflicted-coherent-stack reasoning. That is the product (§4.3, §4.4).
 
 ## 2. Goals and non-goals
 
@@ -55,7 +55,7 @@ The ecosystem already contains pieces that overlap parts of this. ccharness is p
 - No trending feed, no daily snapshots, **no background daemon or scheduler of any kind.** Sync runs only when invoked.
 - Web UI is **read-only** (§4.6): it views the index, status, and recommendations, and can run `recommend` for display, but performs no state changes — enabling, installing, and CLAUDE.md writes stay CLI-only. Built after the CLI core as its own milestone.
 - No baseline/task-class comparison, no regression alerts.
-- ccharness never owns or rewrites a whole CLAUDE.md; it manages only its own delimited block.
+- plugsmith never owns or rewrites a whole CLAUDE.md; it manages only its own delimited block.
 
 ## 3. Component taxonomy
 
@@ -81,16 +81,16 @@ Some categories are effectively **singletons** (memory, context manager) — hav
 
 ### 4.1 Registry sync + search
 - **Primary source: the canonical catalog.** Consume `marketplace.extended.json` (the same manifest the Claude Code CLI reads) as a first-class, well-structured source with enforced frontmatter (`name / description / allowed-tools / version / author / license / compatibility / tags`). This is the low-maintenance path and largely removes the normalization risk earlier drafts carried.
-- **Independence retained: multi-marketplace by config.** Keep a curated, config-file list of additional trusted marketplaces (the official marketplace + a few you name) so ccharness is never captive to a single catalog's availability, editorial choices, or uptime. The canonical catalog is the default and the richest source, not the only one.
+- **Independence retained: multi-marketplace by config.** Keep a curated, config-file list of additional trusted marketplaces (the official marketplace + a few you name) so plugsmith is never captive to a single catalog's availability, editorial choices, or uptime. The canonical catalog is the default and the richest source, not the only one.
 - Normalize every entry into one index model: name, source marketplace, trust tier (`official` / `partner` / `community`), category tags, bundled components (skills / commands / hooks / MCP servers), `compatibility` (which agents/harnesses it targets — carried now for future cross-agent awareness, not acted on in v1), and a derived **context-cost flag**.
 - Context-cost flag: a component adding an MCP server or an always-on hook (e.g. `SessionStart`, or a broad/unmatched `PreToolUse`) is flagged costly; a lazily-loaded skill is not. Where `allowed-tools` / tool-schema size is declared, use it to refine the estimate.
 - **Malformed entries skip loudly:** sync reports "parsed N, skipped M from source X" rather than silently producing a half-empty index. The normalizer targets the documented schemas; deviations are surfaced, not papered over.
-- `ccharness sync` refreshes the index from all configured sources. `ccharness search <query> [--category]` queries it.
+- `plugsmith sync` refreshes the index from all configured sources. `plugsmith search <query> [--category]` queries it.
 
 ### 4.2 Inventory
 - Scan `~/.claude/plugins/`, `~/.claude/skills/`, project `.claude/`, and settings files (`~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`) to determine installed components and enabled/disabled state.
 - Reconcile against the index so each installed item is annotated with category, trust tier, and context-cost.
-- `ccharness status` shows the current effective setup (installed, enabled, what each provides, what scope it came from).
+- `plugsmith status` shows the current effective setup (installed, enabled, what each provides, what scope it came from).
 - The recommender depends on this: recommendations are relative to what is already present.
 
 ### 4.3 Recommender (the product) — grounded LLM-assisted
@@ -105,7 +105,7 @@ Some categories are effectively **singletons** (memory, context manager) — hav
 - **Determinism caveat (stated honestly):** recommendations are no longer perfectly reproducible run-to-run. The cache (§4.8) makes identical task+index inputs return identical output, and the validation layer bounds the variance to "which real, valid components," never to invented ones. For a personal adviser this is an acceptable trade for far better task understanding.
 
 ### 4.4 Conflict + context-cost annotation — the differentiator
-This is the reasoning no other tool automates. The ecosystem's own guidance frames it as a manual checklist users run in their heads before installing anything: *don't run two memory plugins, check it's still maintained, watch the token overhead of stacked tool schemas.* ccharness runs that checklist automatically, against live inventory. Falls directly out of the recommender; not a separate engine.
+This is the reasoning no other tool automates. The ecosystem's own guidance frames it as a manual checklist users run in their heads before installing anything: *don't run two memory plugins, check it's still maintained, watch the token overhead of stacked tool schemas.* plugsmith runs that checklist automatically, against live inventory. Falls directly out of the recommender; not a separate engine.
 - **Singleton-category collision** — two memory engines, two context managers → `conflict`. (The canonical "pick one" case.)
 - **Hook collision** — two components registering hooks on the same event+matcher → `warn` (ordering/precedence surprise).
 - **Command-name collision** — two components exposing the same command → `warn`.
@@ -115,28 +115,28 @@ This is the reasoning no other tool automates. The ecosystem's own guidance fram
 
 ### 4.5 CLAUDE.md managed-block generator
 - Turn a chosen stack into config that actually takes effect — **safely.**
-- ccharness writes **only** between delimiters: `<!-- ccharness:start v<version> -->` … `<!-- ccharness:end -->`. It never reads, edits, or overwrites a byte outside that block.
+- plugsmith writes **only** between delimiters: `<!-- plugsmith:start v<version> -->` … `<!-- plugsmith:end -->`. It never reads, edits, or overwrites a byte outside that block.
 - If no block exists, it appends one. If a block exists, it replaces only that block's contents and bumps the embedded version.
 - If the live CLAUDE.md doesn't exist, it offers to create one containing just the block.
 - Everything outside the block — your hand-tuned content — is untouched and never parsed for meaning.
-- `ccharness gen-claudemd [--scope system|project] [--path <file>]`. Default behavior prints the block to stdout for review; `--write` performs the in-place managed-block update. Review-first by default.
+- `plugsmith gen-claudemd [--scope system|project] [--path <file>]`. Default behavior prints the block to stdout for review; `--write` performs the in-place managed-block update. Review-first by default.
 
 ### 4.6 Read-only web dashboard
 A local, read-only dashboard that views what the CLI produces. **Defined now, built after the CLI core (Milestone E in the implementation plan).** Its purpose is visibility, not control.
 
-- **Launched by** `ccharness serve` (local only; binds localhost). React + Tailwind + recharts, served from `@ccharness/core` data.
+- **Launched by** `plugsmith serve` (local only; binds localhost). React + Tailwind + recharts, served from `@plugsmith/core` data.
 - **Views:**
   - **Index** — browse/search the synced component index, filter by category and trust tier, see context-cost flags.
-  - **Status** — the current installed/enabled setup with annotations (the visual form of `ccharness status`).
+  - **Status** — the current installed/enabled setup with annotations (the visual form of `plugsmith status`).
   - **Recommendation** — a task input box that calls the same deterministic recommender core and renders enable/install/disable with reasons, conflict flags, and the context-cost summary.
 - **Strict read-only boundary:** the dashboard performs **no state changes.** It does not enable, install, disable, or write CLAUDE.md. Those remain CLI-only. Running `recommend` for display is allowed because it changes nothing on the machine; acting on the result is a CLI step. This is the honest line between "read-only" and "useless."
-- **Architectural rule (non-negotiable):** the UI computes nothing the CLI cannot. It calls the same `@ccharness/core` functions and renders their output. Every recommendation on screen is reproducible from a CLI command. No business logic in the UI layer.
-- **Reads the same store** (`~/.ccharness/ccharness.db`). No separate data path, no divergence.
+- **Architectural rule (non-negotiable):** the UI computes nothing the CLI cannot. It calls the same `@plugsmith/core` functions and renders their output. Every recommendation on screen is reproducible from a CLI command. No business logic in the UI layer.
+- **Reads the same store** (`~/.plugsmith/plugsmith.db`). No separate data path, no divergence.
 
 ### 4.7 Model provider (configurable)
 The recommender's model is a swappable component behind a single contract, so it runs wherever you want.
 - **Contract:** given (task, candidate set, inventory), return a structured proposal as **strict JSON** against a fixed schema. The validator (§4.3 step 3) treats every provider's output identically, so the rest of the system is provider-agnostic.
-- **Providers (config, `~/.ccharness/config.yaml`):**
+- **Providers (config, `~/.plugsmith/config.yaml`):**
   - **Anthropic API (Claude)** — paid, highest quality, best for nuanced task interpretation.
   - **Local model on your own hardware** (e.g. the dual-3090 rig via an OpenAI-compatible endpoint) — free per call, private, no data leaves the machine.
 - **Provider-adapter seam:** each provider is an adapter implementing the contract; adding one (or pointing at a different local endpoint) is a config change, not a code change to core. If a provider returns malformed JSON, that's a loud failure surfaced to the operator, not a silent degraded recommendation.
@@ -152,26 +152,26 @@ Per-call token cost changes the UX; these keep it cheap and predictable, scaled 
 ## 5. CLI surface (v1, complete)
 
 ```
-ccharness sync                              # refresh index from configured marketplaces
-ccharness search <query> [--category <c>]   # query the index
-ccharness status                            # show installed + enabled components
-ccharness recommend "<task>" [--scope ...] [--tight] [--integrations a,b] [--provider anthropic|local] [--yes] [--no-cache]
+plugsmith sync                              # refresh index from configured marketplaces
+plugsmith search <query> [--category <c>]   # query the index
+plugsmith status                            # show installed + enabled components
+plugsmith recommend "<task>" [--scope ...] [--tight] [--integrations a,b] [--provider anthropic|local] [--yes] [--no-cache]
                                             # the product: what to enable/install/disable, with reasons (grounded LLM)
-ccharness gen-claudemd [--scope system|project] [--path <f>] [--write]
+plugsmith gen-claudemd [--scope system|project] [--path <f>] [--write]
                                             # emit managed block (stdout by default; --write updates in place)
-ccharness serve [--port <n>]                # launch the read-only dashboard (localhost; no state changes)
+plugsmith serve [--port <n>]                # launch the read-only dashboard (localhost; no state changes)
 ```
 
 That is the entire v1 command surface. No `report`, no `trending`, no `audit`. `serve` is read-only.
 
 ## 6. Architecture
 
-- **`@ccharness/core`** — registry index, normalizer, inventory scanner, recommender (pre-filter + grounding/validation), conflict checker, CLAUDE.md block writer. No UI assumptions. Pure functions over a local store where possible.
+- **`@plugsmith/core`** — registry index, normalizer, inventory scanner, recommender (pre-filter + grounding/validation), conflict checker, CLAUDE.md block writer. No UI assumptions. Pure functions over a local store where possible.
 - **Model provider adapter** (§4.7) — a swappable component behind a JSON-schema contract; the only non-deterministic, network-or-GPU-touching part. Anthropic API or local endpoint, by config. Core depends on the contract, not the provider.
-- **`ccharness` CLI** — thin wrapper over core. Source of truth for all state changes.
-- **Read-only web UI** (§4.6) — React/Tailwind/recharts dashboard launched by `ccharness serve`, reading the same store and calling the same core functions. No state changes; no logic of its own.
-- **Store** — SQLite at `~/.ccharness/ccharness.db` for the index and a cached inventory snapshot. Modest; no telemetry tables.
-- **Install** — when the operator accepts an "install" recommendation, ccharness shells out to the official `claude plugin install` (official CLI is source of truth) and re-runs inventory. ccharness does not reimplement plugin installation. (Where present, `ccpi` could be used as the install backend instead — ccharness owns recommendation, not package management; see §1.1.)
+- **`plugsmith` CLI** — thin wrapper over core. Source of truth for all state changes.
+- **Read-only web UI** (§4.6) — React/Tailwind/recharts dashboard launched by `plugsmith serve`, reading the same store and calling the same core functions. No state changes; no logic of its own.
+- **Store** — SQLite at `~/.plugsmith/plugsmith.db` for the index and a cached inventory snapshot. Modest; no telemetry tables.
+- **Install** — when the operator accepts an "install" recommendation, plugsmith shells out to the official `claude plugin install` (official CLI is source of truth) and re-runs inventory. plugsmith does not reimplement plugin installation. (Where present, `ccpi` could be used as the install backend instead — plugsmith owns recommendation, not package management; see §1.1.)
 
 Design rule retained from earlier drafts: core is fully usable headless; the UI is a read-only view over core, never a place where important logic lives.
 
@@ -201,7 +201,7 @@ Four tables. The fourth (`rec_cache`) exists only to keep LLM cost near zero; it
 
 ## 10. Risks & mitigations (v1)
 - **Marketplace schema drift** (now a *reduced* risk) → primary source is the canonical `marketplace.extended.json` with enforced frontmatter, so the normalizer mostly targets one stable schema; additional marketplaces are few and curated; version the normalizer; skip-loud. The risk moved from "top" to "manageable" once the canonical catalog became the default source (§4.1).
-- **Over-reliance on the canonical catalog** (new) → it's maintained by a third party and could change format, gate access, or shift editorial standards. Mitigation: the multi-marketplace design (§4.1) keeps ccharness functional from the official marketplace + curated sources even if the canonical catalog changes or disappears.
+- **Over-reliance on the canonical catalog** (new) → it's maintained by a third party and could change format, gate access, or shift editorial standards. Mitigation: the multi-marketplace design (§4.1) keeps plugsmith functional from the official marketplace + curated sources even if the canonical catalog changes or disappears.
 - **LLM hallucinates a plugin** → grounding (§4.3 step 3): every recommended component must resolve to a real catalog entry or it's dropped loudly. The model proposes only within the deterministic candidate set; it cannot invent your toolchain.
 - **Persuasive LLM makes a *bad* recommendation more convincing** (the sharpened supply-chain risk) → grounding stops hallucination but not bad judgment, and a fluent justification can sell a poor or risky install. Mitigations: every reason is anchored to a real catalog entry; conflict/context-cost run as facts the model can't override; recommendations are advice the operator reviews, never auto-applied. **This is the strongest case for promoting the backlogged permission-surface review (§11) — note it, don't silently expand scope.**
 - **Non-determinism / reproducibility** → cache by task+index version (§4.8) makes identical inputs return identical output; validation bounds variance to real, valid components. Accepted trade for better task understanding (§4.3 caveat).

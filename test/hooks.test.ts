@@ -64,7 +64,7 @@ describe("readHookRegistrations (PRD §4.4, §8)", () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "ccharness-hooks-"));
+    root = mkdtempSync(join(tmpdir(), "plugsmith-hooks-"));
   });
 
   afterEach(() => {

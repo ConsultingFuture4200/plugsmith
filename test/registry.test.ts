@@ -258,7 +258,7 @@ describe("sync + search (PRD §4.1, §8)", () => {
   let db: DB;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ccharness-sync-"));
+    dir = mkdtempSync(join(tmpdir(), "plugsmith-sync-"));
     db = openStore(":memory:");
   });
 

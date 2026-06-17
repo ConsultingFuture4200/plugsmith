@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { CcharnessConfig } from "../config.js";
+import type { PlugsmithConfig } from "../config.js";
 import { getInventory } from "../db/components.js";
 import { type DB, indexVersion } from "../db/store.js";
 import { reconcile, scanInventory } from "../inventory/scanner.js";
@@ -18,7 +18,7 @@ import type { InventoryItem, Recommendation, Scope } from "../types.js";
  *      module only chooses *what* goes in the block and bumps the embedded
  *      version.
  *   2. The install shell-out (UMB-140): for accepted "install" lines, defer to
- *      the official `claude plugin install` — ccharness owns recommendation, not
+ *      the official `claude plugin install` — plugsmith owns recommendation, not
  *      package management (PRD §6). It never reimplements installation.
  */
 
@@ -88,7 +88,7 @@ function taskSignature(task: string): string {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
-const BLOCK_VERSION_RE = /<!--\s*ccharness:start\s+v([\w.\-]+)\s*-->/;
+const BLOCK_VERSION_RE = /<!--\s*plugsmith:start\s+v([\w.\-]+)\s*-->/;
 
 /**
  * Parse the embedded version from an existing managed block, or undefined when
@@ -182,7 +182,7 @@ export function installComponents(
   const runner = opts.runner ?? defaultInstallRunner;
   if (runner.resolve("claude") === undefined) {
     throw new InstallUnavailableError(
-      "install: `claude` not found on PATH. Install the official CLI first; ccharness does not reimplement plugin installation.",
+      "install: `claude` not found on PATH. Install the official CLI first; plugsmith does not reimplement plugin installation.",
     );
   }
 
@@ -222,7 +222,7 @@ export function enabledRefsFromInventory(db: DB, scope: Scope): string[] {
  * `~/.claude/CLAUDE.md`; project scope → `<cwd>/CLAUDE.md`. `config` is accepted
  * for future per-scope overrides; unused in v1.
  */
-export function defaultClaudeMdPath(scope: Scope, _config?: CcharnessConfig): string {
+export function defaultClaudeMdPath(scope: Scope, _config?: PlugsmithConfig): string {
   if (scope === "system") {
     return join(homedir(), ".claude", "CLAUDE.md");
   }

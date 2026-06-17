@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CcharnessConfig } from "../core/config.js";
+import type { PlugsmithConfig } from "../core/config.js";
 import { getAllComponents } from "../core/db/components.js";
 import type { DB } from "../core/db/store.js";
 import { reconcile, scanInventory } from "../core/inventory/scanner.js";
@@ -15,7 +15,7 @@ import type { Component, InventoryItem, Recommendation } from "../core/types.js"
 /**
  * Read-only dashboard HTTP layer (PRD §4.6, Milestone E).
  *
- * A thin localhost server over `@ccharness/core`. It exposes ONLY read and
+ * A thin localhost server over `@plugsmith/core`. It exposes ONLY read and
  * recommend endpoints — there is structurally no enable/install/disable/write
  * route, so the dashboard cannot change machine state (PRD §4.6 read-only
  * boundary). The recommend path goes through the SAME core `recommend()` — same
@@ -35,7 +35,7 @@ interface Route {
 /** Everything a handler needs, injected so the server stays testable. */
 export interface ApiContext {
   db: DB;
-  config: CcharnessConfig;
+  config: PlugsmithConfig;
   /** Project root whose `.claude/` is the project scope (default `process.cwd()`). */
   projectPath: string;
   /** Static web asset root; when present, non-API GETs serve the built SPA. */
@@ -197,7 +197,7 @@ async function handleRecommend(
     if (err instanceof CostAbortedError) {
       sendJson(res, 402, {
         error:
-          "paid provider declined: the read-only dashboard cannot run paid recommendations. Use `ccharness recommend --provider anthropic --yes` from the CLI, or configure a local provider.",
+          "paid provider declined: the read-only dashboard cannot run paid recommendations. Use `plugsmith recommend --provider anthropic --yes` from the CLI, or configure a local provider.",
       });
       return;
     }

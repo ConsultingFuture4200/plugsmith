@@ -1,9 +1,9 @@
 {
-  "name": "@ccharness/web",
+  "name": "plugsmith-web",
   "version": "0.7.0",
   "private": true,
   "type": "module",
-  "description": "Read-only ccharness dashboard (PRD §4.6). Views the index, status, and recommendations; changes nothing.",
+  "description": "Read-only plugsmith dashboard (PRD §4.6). Views the index, status, and recommendations; changes nothing.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

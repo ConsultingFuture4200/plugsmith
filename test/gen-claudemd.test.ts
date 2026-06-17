@@ -27,7 +27,7 @@ describe("gen-claudemd write path on a temp CLAUDE.md", () => {
   let file: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ccharness-gen-"));
+    dir = mkdtempSync(join(tmpdir(), "plugsmith-gen-"));
     file = join(dir, "CLAUDE.md");
   });
 
@@ -71,7 +71,7 @@ describe("gen-claudemd write path on a temp CLAUDE.md", () => {
     const result = writeBlockToFile(file, renderBlock(version, ["solo"]));
     expect(result.mode).toBe("created");
     expect(existsSync(`${file}.bak`)).toBe(false); // nothing to back up
-    expect(readFileSync(file, "utf8")).toContain("ccharness:start v0.7.0");
+    expect(readFileSync(file, "utf8")).toContain("plugsmith:start v0.7.0");
   });
 });
 

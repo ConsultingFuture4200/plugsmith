@@ -1,10 +1,10 @@
 {
-  "name": "ccharness",
+  "name": "plugsmith",
   "version": "0.7.0",
   "description": "Personal, local-first CLI that recommends a coherent, deconflicted Claude Code plugin/skill stack for the task you're working on.",
   "type": "module",
   "bin": {
-    "ccharness": "./dist/cli/index.js"
+    "plugsmith": "./dist/cli/index.js"
   },
   "exports": {
     ".": "./dist/core/index.js"

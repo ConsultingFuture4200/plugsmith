@@ -29,7 +29,7 @@ import type { Annotation, Component, InventoryItem, Recommendation, Scope } from
 import { defaultWebRoot, serve } from "../server/index.js";
 
 /**
- * `ccharness` CLI (PRD §5) — thin wrapper over `@ccharness/core`. Source of
+ * `plugsmith` CLI (PRD §5) — thin wrapper over `@plugsmith/core`. Source of
  * truth for all state changes. The complete v1 command surface, no more:
  * sync, search, status, recommend, gen-claudemd, serve.
  *
@@ -39,7 +39,7 @@ import { defaultWebRoot, serve } from "../server/index.js";
 const program = new Command();
 
 program
-  .name("ccharness")
+  .name("plugsmith")
   .description(
     "Recommend a coherent, deconflicted Claude Code plugin/skill stack for the task at hand.",
   )
@@ -177,7 +177,7 @@ program
       const rec = readLatestRecommendation(db, opts.fromRecommend, scope);
       if (!rec) {
         console.error(
-          `gen-claudemd: no cached recommendation for "${opts.fromRecommend}" (scope ${scope}). Run \`ccharness recommend\` first.`,
+          `gen-claudemd: no cached recommendation for "${opts.fromRecommend}" (scope ${scope}). Run \`plugsmith recommend\` first.`,
         );
         process.exitCode = 1;
         return;
@@ -261,7 +261,7 @@ program
         { db, config, projectPath: process.cwd(), ...(webRoot ? { webRoot } : {}) },
         port,
       );
-      console.error(`ccharness serve: read-only dashboard on ${url} (localhost only).`);
+      console.error(`plugsmith serve: read-only dashboard on ${url} (localhost only).`);
       if (!webRoot) {
         console.error(
           "serve: web assets not built. Run `pnpm --dir web build`; the API is live in the meantime.",

@@ -1,5 +1,5 @@
 /**
- * `@ccharness/core` public surface (PRD §6).
+ * `@plugsmith/core` public surface (PRD §6).
  *
  * Pure functions over a local store where possible. No UI assumptions. The CLI
  * and the read-only dashboard both consume ONLY what is exported here — the UI
@@ -8,7 +8,7 @@
 export * from "./types.js";
 export { TAXONOMY, categoryById, categoryByKey, singletonKeys } from "./taxonomy.js";
 export {
-  type CcharnessConfig,
+  type PlugsmithConfig,
   type ProviderName,
   DEFAULT_CONFIG,
   loadConfig,

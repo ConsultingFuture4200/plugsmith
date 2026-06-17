@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import type { CcharnessConfig, MarketplaceConfig } from "../config.js";
+import type { PlugsmithConfig, MarketplaceConfig } from "../config.js";
 import { searchComponents, upsertComponents } from "../db/components.js";
 import { type DB, indexVersion, setMeta } from "../db/store.js";
 import type { Component } from "../types.js";
@@ -94,7 +94,7 @@ function normalizeLocalCacheSource(
     } catch (err) {
       skipped += 1;
       const reason = err instanceof NormalizeError ? err.message : String(err);
-      console.error(`ccharness sync: skipped malformed entry in ${mc.name}: ${reason}`);
+      console.error(`plugsmith sync: skipped malformed entry in ${mc.name}: ${reason}`);
     }
   }
   return { parsed, skipped };
@@ -135,7 +135,7 @@ function normalizeSource(
       // Skip-loud: count it and log, never abort the source for one bad entry.
       skipped += 1;
       const reason = err instanceof NormalizeError ? err.message : String(err);
-      console.error(`ccharness sync: skipped malformed entry in ${mc.name}: ${reason}`);
+      console.error(`plugsmith sync: skipped malformed entry in ${mc.name}: ${reason}`);
     }
   }
   return { parsed, skipped };
@@ -194,7 +194,7 @@ function upsertReferencedMarketplaces(
  * without failing the whole run. On completion the index version is bumped,
  * invalidating `rec_cache` (PRD §4.8).
  */
-export async function sync(db: DB, config: CcharnessConfig): Promise<SyncReport> {
+export async function sync(db: DB, config: PlugsmithConfig): Promise<SyncReport> {
   const sources: SyncSourceReport[] = [];
   const syncedAt = new Date().toISOString();
 
@@ -220,7 +220,7 @@ export async function sync(db: DB, config: CcharnessConfig): Promise<SyncReport>
     } catch (err) {
       // Source-level failure: skip the whole source, keep the run going.
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`ccharness sync: source ${mc.name} failed: ${message}`);
+      console.error(`plugsmith sync: source ${mc.name} failed: ${message}`);
       sources.push({ marketplace: mc.name, parsed: 0, skipped: 0, error: message });
     }
   }

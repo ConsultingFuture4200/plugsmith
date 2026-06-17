@@ -3,16 +3,16 @@ import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 /**
  * CLAUDE.md managed-block writer (PRD §4.5, Milestone D).
  *
- * Hard guarantee: ccharness writes ONLY between its delimiters and never reads
+ * Hard guarantee: plugsmith writes ONLY between its delimiters and never reads
  * for meaning or modifies a byte outside the block. Everything else in this
  * module exists to make that guarantee testable.
  */
 
-const START_RE = /<!--\s*ccharness:start\s+v[\w.\-]+\s*-->/;
-const END = "<!-- ccharness:end -->";
+const START_RE = /<!--\s*plugsmith:start\s+v[\w.\-]+\s*-->/;
+const END = "<!-- plugsmith:end -->";
 
 export function startDelimiter(version: string): string {
-  return `<!-- ccharness:start v${version} -->`;
+  return `<!-- plugsmith:start v${version} -->`;
 }
 
 /** Render the managed block body from a chosen stack. Pure. */
@@ -23,9 +23,9 @@ export function renderBlock(
 ): string {
   const lines = [
     startDelimiter(version),
-    "<!-- Managed by ccharness. Do not edit inside this block; it is regenerated. -->",
+    "<!-- Managed by plugsmith. Do not edit inside this block; it is regenerated. -->",
     "",
-    "## Enabled stack (ccharness)",
+    "## Enabled stack (plugsmith)",
     "",
     ...(enabled.length ? enabled.map((e) => `- ${e}`) : ["- (none selected)"]),
     ...(notes.length ? ["", "### Notes", ...notes.map((n) => `- ${n}`)] : []),

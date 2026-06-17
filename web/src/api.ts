@@ -1,5 +1,5 @@
 /**
- * Typed client for the read-only ccharness API (PRD §4.6).
+ * Typed client for the read-only plugsmith API (PRD §4.6).
  *
  * Mirrors the server DTOs in `src/server/api.ts`. The UI calls only these three
  * read/recommend endpoints — there is no client method that mutates state,

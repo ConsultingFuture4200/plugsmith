@@ -2,8 +2,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Local ccharness store / config (never commit a user's machine state)
-.ccharness/
+# Local plugsmith store / config (never commit a user's machine state)
+.plugsmith/
 *.db
 *.db-journal
 

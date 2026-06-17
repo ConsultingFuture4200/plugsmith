@@ -169,7 +169,7 @@ describe("read-only dashboard API (Milestone E)", () => {
     const config = {
       ...DEFAULT_CONFIG,
       defaultProvider: "anthropic" as const,
-      anthropic: { model: "claude-x", apiKeyEnv: "CCHARNESS_TEST_KEY_ABSENT" },
+      anthropic: { model: "claude-x", apiKeyEnv: "PLUGSMITH_TEST_KEY_ABSENT" },
     };
     const { server, url } = await listenWith(db, config);
     try {

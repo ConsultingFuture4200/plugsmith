@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { CcharnessConfig } from "../config.js";
+import type { PlugsmithConfig } from "../config.js";
 import { getComponent, getInventory } from "../db/components.js";
 import { type DB, indexVersion } from "../db/store.js";
 import {
@@ -119,7 +119,7 @@ function writeCache(
  */
 export async function recommend(
   db: DB,
-  config: CcharnessConfig,
+  config: PlugsmithConfig,
   task: string,
   opts: RecommendOptions = {},
 ): Promise<Recommendation> {

@@ -1,4 +1,4 @@
-import type { CcharnessConfig, ProviderName } from "../config.js";
+import type { PlugsmithConfig, ProviderName } from "../config.js";
 import { type ModelProvider, ProviderError } from "./provider.js";
 import { anthropicProvider } from "./providers/anthropic.js";
 import { localProvider } from "./providers/local.js";
@@ -11,7 +11,7 @@ import { localProvider } from "./providers/local.js";
  * depends on which provider answered — only on the contract — so this factory is
  * the single place that knows the concrete adapters exist.
  */
-export function selectProvider(config: CcharnessConfig, override?: ProviderName): ModelProvider {
+export function selectProvider(config: PlugsmithConfig, override?: ProviderName): ModelProvider {
   const name = override ?? config.defaultProvider;
 
   switch (name) {

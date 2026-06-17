@@ -4,7 +4,7 @@
  * Unlike scripts/exit-gate.ts (which seeds an in-memory index and scripts the
  * proposals with Claude acting as the LLM), this driver runs the FULL REAL
  * pipeline end-to-end against real machine state:
- *   - the REAL synced store at openStore()'s default path (~/.ccharness),
+ *   - the REAL synced store at openStore()'s default path (~/.plugsmith),
  *     populated by `node dist/cli/index.js sync`,
  *   - the REAL operator inventory scanned into that store,
  *   - the REAL localProvider hitting Ollama at the configured baseUrl/model.
@@ -20,11 +20,11 @@
  * counting round-trips per propose() call: 1 round-trip ⇒ valid on first call,
  * 2 round-trips ⇒ the repair retry was needed.
  *
- * Model is overridable via CCHARNESS_GATE_MODEL so the same driver can compare
+ * Model is overridable via PLUGSMITH_GATE_MODEL so the same driver can compare
  * qwen3:4b against qwen2.5:3b without code changes.
  *
  * Run: pnpm exec tsx scripts/real-gate.ts
- *      CCHARNESS_GATE_MODEL=qwen2.5:3b pnpm exec tsx scripts/real-gate.ts
+ *      PLUGSMITH_GATE_MODEL=qwen2.5:3b pnpm exec tsx scripts/real-gate.ts
  */
 import { openStore } from "../src/core/db/store.js";
 import { recommend } from "../src/core/recommender/index.js";
@@ -50,7 +50,7 @@ const TASKS: Task[] = [
 ];
 
 const BASE_URL = "http://localhost:11434/v1";
-const MODEL = process.env.CCHARNESS_GATE_MODEL ?? "qwen3:4b";
+const MODEL = process.env.PLUGSMITH_GATE_MODEL ?? "qwen3:4b";
 
 /**
  * Wrap the global fetch so each propose() call's HTTP round-trips are counted.

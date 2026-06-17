@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
  * Recommendation view (PRD §4.6): a task input that calls the SAME core
  * `recommend()` via the read-only API and renders enable/install/disable with
  * per-line reasons, conflict flags, and the context-cost summary. Output for a
- * given task matches `ccharness recommend "<task>"` exactly (PRD §4.6 exit gate).
+ * given task matches `plugsmith recommend "<task>"` exactly (PRD §4.6 exit gate).
  *
  * Acting on the result is a CLI step — this view only renders advice, it changes
  * nothing. Paid providers are declined server-side (PRD §4.8); the resulting
@@ -96,7 +96,7 @@ export function RecommendView(): React.JSX.Element {
         <h2 className="text-xl font-semibold tracking-tight">Recommendation</h2>
         <p className="text-sm text-muted-foreground">
           Describe your task to get install/enable/disable advice. This renders the same
-          output as <span className="font-mono">ccharness recommend</span> — acting on it is a
+          output as <span className="font-mono">plugsmith recommend</span> — acting on it is a
           CLI step.
         </p>
       </div>

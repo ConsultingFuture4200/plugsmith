@@ -21,7 +21,7 @@ import { prefilter } from "../src/core/recommender/prefilter.js";
 import { recommend } from "../src/core/recommender/index.js";
 import { ProviderError, type ModelProvider } from "../src/core/recommender/provider.js";
 import type { Component, InventoryItem, RecLine } from "../src/core/types.js";
-import type { CcharnessConfig } from "../src/core/config.js";
+import type { PlugsmithConfig } from "../src/core/config.js";
 
 function comp(o: Partial<Component> & { id: string; name: string; categoryTags: string[] }): Component {
   return {
@@ -140,7 +140,7 @@ function scripted(): ModelProvider & { calls: number } {
   return p;
 }
 
-const config = { prefilterBreadth: "generous", defaultProvider: "local" } as unknown as CcharnessConfig;
+const config = { prefilterBreadth: "generous", defaultProvider: "local" } as unknown as PlugsmithConfig;
 
 function phaseA() {
   const db = seed();

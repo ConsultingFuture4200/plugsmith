@@ -14,7 +14,7 @@ import type { Component } from "../src/core/types.js";
  * so the overlay is a no-op for them regardless — this just avoids touching the
  * operator's machine during tests.
  */
-const NO_HOOKS = { hookBasePaths: { claudeHome: "/nonexistent/ccharness-test" } } as const;
+const NO_HOOKS = { hookBasePaths: { claudeHome: "/nonexistent/plugsmith-test" } } as const;
 
 /**
  * Milestone C integration spine (PRD §4.3, §4.4, §4.8).

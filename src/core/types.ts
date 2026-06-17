@@ -1,5 +1,5 @@
 /**
- * Core domain types for ccharness.
+ * Core domain types for plugsmith.
  *
  * These mirror the index/data model in PRD §3 (taxonomy), §4.1 (index model),
  * and §7 (SQLite schema). Keep this file dependency-free: it is the shared

@@ -28,7 +28,7 @@ import { type Comparators, SortableHead, useSort } from "@/components/sortable";
 import { categoriesOf, formatTokens } from "@/lib/display";
 
 /**
- * Status view (PRD §4.6): the visual form of `ccharness status`. Renders the
+ * Status view (PRD §4.6): the visual form of `plugsmith status`. Renders the
  * reconciled inventory snapshot as a category-distribution chart plus an
  * individual per-component table (mirroring the Index view), with enabled state
  * and the index annotation. Unreadable settings files surface, never silently
@@ -168,7 +168,7 @@ export function StatusView(): React.JSX.Element {
         <h2 className="text-xl font-semibold tracking-tight">Installed inventory</h2>
         <p className="text-sm text-muted-foreground">
           Reconciled snapshot of what is installed across scopes. Read-only — this mirrors{" "}
-          <span className="font-mono">ccharness status</span>.
+          <span className="font-mono">plugsmith status</span>.
         </p>
       </div>
 

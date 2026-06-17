@@ -77,7 +77,7 @@ describe("scanInventory (PRD §4.2, §8)", () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "ccharness-inv-"));
+    root = mkdtempSync(join(tmpdir(), "plugsmith-inv-"));
   });
 
   afterEach(() => {
@@ -135,7 +135,7 @@ describe("reconcile (PRD §4.2, Milestone B step 3)", () => {
 
   beforeEach(() => {
     db = openStore(":memory:");
-    root = mkdtempSync(join(tmpdir(), "ccharness-inv-"));
+    root = mkdtempSync(join(tmpdir(), "plugsmith-inv-"));
   });
 
   afterEach(() => {
@@ -204,7 +204,7 @@ describe("derived metadata for not-in-index components (PRD §4.2)", () => {
 
   beforeEach(() => {
     db = openStore(":memory:");
-    root = mkdtempSync(join(tmpdir(), "ccharness-derived-"));
+    root = mkdtempSync(join(tmpdir(), "plugsmith-derived-"));
   });
 
   afterEach(() => {

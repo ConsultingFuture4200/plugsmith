@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import Database from "better-sqlite3";
 import { SCHEMA_SQL } from "./schema.js";
 
-/** Default store path (PRD §6: `~/.ccharness/ccharness.db`). */
+/** Default store path (PRD §6: `~/.plugsmith/plugsmith.db`). */
 export function defaultDbPath(): string {
-  return join(homedir(), ".ccharness", "ccharness.db");
+  return join(homedir(), ".plugsmith", "plugsmith.db");
 }
 
 export type DB = Database.Database;
@@ -30,7 +30,7 @@ export function openStore(path: string = defaultDbPath()): DB {
 /**
  * Additive, idempotent column migrations for stores created before a column was
  * added to the schema (PRD §7). `CREATE TABLE IF NOT EXISTS` does not retrofit
- * new columns onto an existing table, so a pre-existing `~/.ccharness` DB would
+ * new columns onto an existing table, so a pre-existing `~/.plugsmith` DB would
  * otherwise lack `context_tokens` and fail every upsert. Each migration is a
  * guarded `ADD COLUMN` — safe to run on every open.
  */

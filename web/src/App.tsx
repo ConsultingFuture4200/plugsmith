@@ -9,9 +9,9 @@ import { StatusView } from "@/views/StatusView";
 
 /**
  * Read-only dashboard shell (PRD §4.6). Three views — Index, Status,
- * Recommendation — over the same `@ccharness/core` data the CLI uses. No view
+ * Recommendation — over the same `@plugsmith/core` data the CLI uses. No view
  * performs a state change; every recommendation on screen is reproducible from
- * `ccharness recommend`.
+ * `plugsmith recommend`.
  */
 const TABS = [
   { key: "index", label: "Index", icon: Boxes },
@@ -30,7 +30,7 @@ export function App(): React.JSX.Element {
                 <Terminal className="h-4 w-4" aria-hidden />
               </span>
               <div className="leading-tight">
-                <h1 className="font-semibold tracking-tight">ccharness</h1>
+                <h1 className="font-semibold tracking-tight">plugsmith</h1>
                 <p className="text-xs text-muted-foreground">
                   read-only dashboard &middot; views only, no state changes
                 </p>

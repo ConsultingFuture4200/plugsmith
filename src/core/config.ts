@@ -15,7 +15,7 @@ export interface MarketplaceConfig {
   enabled: boolean;
 }
 
-export interface CcharnessConfig {
+export interface PlugsmithConfig {
   /** Default model provider (PRD §12 Q3 — leaning local-default). */
   defaultProvider: ProviderName;
   anthropic?: { model: string; apiKeyEnv: string };
@@ -26,12 +26,12 @@ export interface CcharnessConfig {
   prefilterBreadth: "narrow" | "balanced" | "generous";
 }
 
-/** Config dir / files (PRD §4.7: `~/.ccharness/config.yaml`). */
+/** Config dir / files (PRD §4.7: `~/.plugsmith/config.yaml`). */
 export function configDir(): string {
-  return join(homedir(), ".ccharness");
+  return join(homedir(), ".plugsmith");
 }
 
-export const DEFAULT_CONFIG: CcharnessConfig = {
+export const DEFAULT_CONFIG: PlugsmithConfig = {
   defaultProvider: "local",
   anthropic: { model: "claude-opus-4-8", apiKeyEnv: "ANTHROPIC_API_KEY" },
   // qwen2.5:3b chosen over qwen3:4b as the default: the Milestone-0 validation
@@ -82,12 +82,12 @@ export const DEFAULT_CONFIG: CcharnessConfig = {
 };
 
 /**
- * Load config from `~/.ccharness/config.yaml`, falling back to DEFAULT_CONFIG.
+ * Load config from `~/.plugsmith/config.yaml`, falling back to DEFAULT_CONFIG.
  * Merges top-level keys so a partial user config still works. A key written
  * but left blank in YAML (parsed as `null`) must NOT clobber the default — e.g.
  * `anthropic:` with no value should keep the default block, not null it out.
  */
-export function loadConfig(path = join(configDir(), "config.yaml")): CcharnessConfig {
+export function loadConfig(path = join(configDir(), "config.yaml")): PlugsmithConfig {
   if (!existsSync(path)) return DEFAULT_CONFIG;
   const raw = (parseYaml(readFileSync(path, "utf8")) ?? {}) as Record<string, unknown>;
   // Drop null/undefined values so a blank YAML key falls back to the default.
