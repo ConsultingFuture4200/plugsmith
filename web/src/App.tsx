@@ -1,21 +1,23 @@
-import { Boxes, ListChecks, Sparkles, Terminal } from "lucide-react";
-import type * as React from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { IndexView } from "@/views/IndexView";
 import { RecommendView } from "@/views/RecommendView";
 import { StatusView } from "@/views/StatusView";
+import { UsageView } from "@/views/UsageView";
+import { Activity, Boxes, ListChecks, Sparkles, Terminal } from "lucide-react";
+import type * as React from "react";
 
 /**
- * Read-only dashboard shell (PRD §4.6). Three views — Index, Status,
+ * Read-only dashboard shell (PRD §4.6). Four views — Index, Status, Usage,
  * Recommendation — over the same `@plugsmith/core` data the CLI uses. No view
- * performs a state change; every recommendation on screen is reproducible from
- * `plugsmith recommend`.
+ * performs a state change; every recommendation and audit on screen is
+ * reproducible from the CLI (`plugsmith recommend`, `plugsmith usage --json`).
  */
 const TABS = [
   { key: "index", label: "Index", icon: Boxes },
   { key: "status", label: "Status", icon: ListChecks },
+  { key: "usage", label: "Usage", icon: Activity },
   { key: "recommend", label: "Recommendation", icon: Sparkles },
 ] as const;
 
@@ -56,6 +58,9 @@ export function App(): React.JSX.Element {
             </TabsContent>
             <TabsContent value="status" className="focus-visible:outline-none">
               <StatusView />
+            </TabsContent>
+            <TabsContent value="usage" className="focus-visible:outline-none">
+              <UsageView />
             </TabsContent>
             <TabsContent value="recommend" className="focus-visible:outline-none">
               <RecommendView />

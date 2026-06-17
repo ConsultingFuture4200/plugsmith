@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../src/core/config.js";
 import { upsertComponents } from "../src/core/db/components.js";
@@ -31,7 +34,13 @@ function comp(over: Partial<Component> & { id: string; name: string }): Componen
 
 const SEED: Component[] = [
   comp({ id: "mem-a", name: "MemoryEngineA", categoryTags: ["memory"], trustTier: "partner" }),
-  comp({ id: "mcp-slack", name: "SlackMCP", categoryTags: ["integrations"], contextCostFlag: true, trustTier: "official" }),
+  comp({
+    id: "mcp-slack",
+    name: "SlackMCP",
+    categoryTags: ["integrations"],
+    contextCostFlag: true,
+    trustTier: "official",
+  }),
 ];
 
 /** Cache signature matches the recommender's: sha256 of normalized task. */
@@ -63,6 +72,8 @@ describe("read-only dashboard API (Milestone E)", () => {
       (r) => r.method !== "GET" && !(r.method === "POST" && r.path === "/api/recommend"),
     );
     expect(mutating).toEqual([]);
+    // The usage/audit surface is GET-only (read-only boundary holds for it too).
+    expect(ROUTES).toContainEqual({ method: "GET", path: "/api/usage" });
     for (const r of ROUTES) {
       for (const token of ["enable", "disable", "install", "write", "delete", "update", "sync"]) {
         expect(r.path.toLowerCase()).not.toContain(token);
@@ -82,7 +93,9 @@ describe("read-only dashboard API (Milestone E)", () => {
     try {
       const res = await fetch(`${url}/api/index`);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { components: Array<{ id: string; contextCostFlag: boolean }> };
+      const body = (await res.json()) as {
+        components: Array<{ id: string; contextCostFlag: boolean }>;
+      };
       expect(body.components.map((c) => c.id).sort()).toEqual(["mcp-slack", "mem-a"]);
       const slack = body.components.find((c) => c.id === "mcp-slack");
       expect(slack?.contextCostFlag).toBe(true);
@@ -112,6 +125,42 @@ describe("read-only dashboard API (Milestone E)", () => {
       expect(Array.isArray(body.unreadable)).toBe(true);
     } finally {
       server.close();
+    }
+  });
+
+  it("GET /api/usage returns an AuditReport from a real scan (read-only)", async () => {
+    // Hermetic: scanUsage globs ~/.claude/projects. Point HOME at an empty temp
+    // dir so the scan finds no transcripts (fast + deterministic). The audit is
+    // built from the (empty) scan + reconciled inventory, never mutating state.
+    const home = process.env.HOME ?? "";
+    const tmpHome = mkdtempSync(join(tmpdir(), "plugsmith-usage-"));
+    process.env.HOME = tmpHome;
+    const { server, url } = await listen(db);
+    try {
+      const res = await fetch(`${url}/api/usage?since=7`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        audit: {
+          windowDays?: number;
+          topPlugins: unknown[];
+          topSkills: unknown[];
+          installed: unknown[];
+          suggestions: unknown[];
+        };
+        filesScanned: number;
+        totalCalls: number;
+      };
+      expect(body.audit.windowDays).toBe(7);
+      expect(Array.isArray(body.audit.topPlugins)).toBe(true);
+      expect(Array.isArray(body.audit.topSkills)).toBe(true);
+      expect(Array.isArray(body.audit.installed)).toBe(true);
+      expect(Array.isArray(body.audit.suggestions)).toBe(true);
+      expect(typeof body.filesScanned).toBe("number");
+      expect(typeof body.totalCalls).toBe("number");
+    } finally {
+      server.close();
+      process.env.HOME = home;
+      rmSync(tmpHome, { recursive: true, force: true });
     }
   });
 
@@ -145,7 +194,14 @@ describe("read-only dashboard API (Milestone E)", () => {
     };
     db.prepare(
       "INSERT INTO rec_cache (task_signature, index_version, scope, proposal, provider, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    ).run(taskSignature(task), "1", "system", JSON.stringify(cached), "local", new Date().toISOString());
+    ).run(
+      taskSignature(task),
+      "1",
+      "system",
+      JSON.stringify(cached),
+      "local",
+      new Date().toISOString(),
+    );
 
     const { server, url } = await listen(db);
     try {

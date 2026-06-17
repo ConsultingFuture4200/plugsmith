@@ -11,6 +11,8 @@ import { CostAbortedError, recommend } from "../core/recommender/index.js";
 import { ProviderError } from "../core/recommender/provider.js";
 import { search } from "../core/registry/sync.js";
 import type { Component, InventoryItem, Recommendation } from "../core/types.js";
+import { buildAudit } from "../core/usage/audit.js";
+import { scanUsage } from "../core/usage/transcripts.js";
 
 /**
  * Read-only dashboard HTTP layer (PRD §4.6, Milestone E).
@@ -59,6 +61,7 @@ interface RecommendBody {
 export const ROUTES: ReadonlyArray<Pick<Route, "method" | "path">> = [
   { method: "GET", path: "/api/index" },
   { method: "GET", path: "/api/status" },
+  { method: "GET", path: "/api/usage" },
   { method: "POST", path: "/api/recommend" },
 ];
 
@@ -141,6 +144,39 @@ function handleStatus(_req: IncomingMessage, res: ServerResponse, ctx: ApiContex
 }
 
 /**
+ * GET /api/usage — the usage/audit report (README Roadmap: usage surface).
+ *
+ * Read-only: scans the operator's real session transcripts and joins them
+ * against the installed inventory + index via the SAME `scanUsage` + `buildAudit`
+ * the CLI's `plugsmith usage --json` uses, so the dashboard renders exactly what
+ * the CLI produces — it computes nothing the CLI cannot. Accepts an optional
+ * `?since=<days>` window (positive integer); anything else is ignored (all
+ * history). Heavier than the other reads, hence the UI loads it on demand.
+ */
+async function handleUsage(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: ApiContext,
+): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  const sinceRaw = url.searchParams.get("since");
+  const parsed = sinceRaw != null ? Number.parseInt(sinceRaw, 10) : undefined;
+  const sinceDays = parsed != null && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+
+  const scan = await scanUsage(sinceDays != null ? { sinceDays } : {});
+  const report = scanInventory({ projectPath: ctx.projectPath });
+  const inventory: InventoryItem[] = reconcile(ctx.db, report);
+  const audit = buildAudit(ctx.db, scan.stats, inventory, {
+    ...(sinceDays != null ? { windowDays: sinceDays } : {}),
+  });
+  sendJson(res, 200, {
+    audit,
+    filesScanned: scan.filesScanned,
+    totalCalls: scan.totalCalls,
+  });
+}
+
+/**
  * POST /api/recommend — task → recommend() (PRD §4.6 Recommendation view).
  *
  * Routes through the SAME core `recommend()` (cache + cost guard, PRD §4.8). The
@@ -212,6 +248,7 @@ async function handleRecommend(
 const ROUTE_HANDLERS: Route[] = [
   { method: "GET", path: "/api/index", handler: handleIndex },
   { method: "GET", path: "/api/status", handler: handleStatus },
+  { method: "GET", path: "/api/usage", handler: handleUsage },
   { method: "POST", path: "/api/recommend", handler: handleRecommend },
 ];
 
@@ -283,7 +320,7 @@ export function createApiServer(ctx: ApiContext): Server {
         }
         sendJson(res, 404, {
           error: "not found",
-          hint: "read-only API: GET /api/index, GET /api/status, POST /api/recommend",
+          hint: "read-only API: GET /api/index, GET /api/status, GET /api/usage, POST /api/recommend",
         });
       } catch (err) {
         sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });

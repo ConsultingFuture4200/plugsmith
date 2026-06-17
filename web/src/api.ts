@@ -1,7 +1,7 @@
 /**
  * Typed client for the read-only plugsmith API (PRD §4.6).
  *
- * Mirrors the server DTOs in `src/server/api.ts`. The UI calls only these three
+ * Mirrors the server DTOs in `src/server/api.ts`. The UI calls only these
  * read/recommend endpoints — there is no client method that mutates state,
  * because there is no server route that does (PRD §4.6 read-only boundary).
  */
@@ -83,13 +83,67 @@ export interface RecommendRequest {
   provider?: "anthropic" | "local";
 }
 
+/** A usage kind on the wire (mirrors `UsageKind` in core). */
+export type UsageKindDto = "plugin" | "skill" | "builtin";
+
+/** One aggregated usage statistic (mirrors `UsageStat`, README Roadmap). */
+export interface UsageStatDto {
+  kind: UsageKindDto;
+  name: string;
+  calls: number;
+  sessions: number;
+  lastUsed?: string;
+}
+
+/** One actionable trim/keep/add/better-use suggestion (mirrors `Suggestion`). */
+export interface SuggestionDto {
+  kind: "trim" | "keep" | "add" | "better-use";
+  title: string;
+  detail: string;
+  refs: string[];
+}
+
+/** Per-installed-component usage row (mirrors `AuditComponentUsage`). */
+export interface AuditComponentUsageDto {
+  componentRef: string;
+  kind: "skill" | "plugin";
+  categoryTags: string[];
+  calls: number;
+  sessions: number;
+  lastUsed?: string;
+  contextTokens?: number;
+  costPerUse?: number;
+}
+
+/** The full usage/audit report (mirrors `AuditReport`, README Roadmap). */
+export interface AuditReportDto {
+  windowDays?: number;
+  topPlugins: UsageStatDto[];
+  topSkills: UsageStatDto[];
+  topBuiltins: UsageStatDto[];
+  installed: AuditComponentUsageDto[];
+  unused: AuditComponentUsageDto[];
+  activeCategories: string[];
+  suggestions: SuggestionDto[];
+}
+
+/** GET /api/usage envelope: the audit plus scan provenance counters. */
+export interface UsageDto {
+  audit: AuditReportDto;
+  filesScanned: number;
+  totalCalls: number;
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return (await res.json()) as T;
 }
 
-export async function fetchIndex(q: string, category: string): Promise<{ components: ComponentDto[] }> {
+export async function fetchIndex(
+  q: string,
+  category: string,
+): Promise<{ components: ComponentDto[] }> {
   const params = new URLSearchParams();
   if (q.trim()) params.set("q", q.trim());
   if (category) params.set("category", category);
@@ -99,6 +153,17 @@ export async function fetchIndex(q: string, category: string): Promise<{ compone
 
 export async function fetchStatus(): Promise<StatusDto> {
   return getJson("/api/status");
+}
+
+/**
+ * GET /api/usage — the usage/audit report (README Roadmap). Heavier than the
+ * other reads (it scans the operator's session transcripts), so the Usage view
+ * fetches it on demand rather than on mount. `sinceDays` bounds the window
+ * (omit/undefined = all history).
+ */
+export async function fetchUsage(sinceDays?: number): Promise<UsageDto> {
+  const qs = sinceDays != null ? `?since=${sinceDays}` : "";
+  return getJson(`/api/usage${qs}`);
 }
 
 export async function fetchRecommendation(
