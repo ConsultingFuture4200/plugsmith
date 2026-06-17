@@ -1,7 +1,11 @@
-import { useState } from "react";
-import { IndexView } from "./views/IndexView.js";
-import { RecommendView } from "./views/RecommendView.js";
-import { StatusView } from "./views/StatusView.js";
+import { Boxes, ListChecks, Sparkles, Terminal } from "lucide-react";
+import type * as React from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { IndexView } from "@/views/IndexView";
+import { RecommendView } from "@/views/RecommendView";
+import { StatusView } from "@/views/StatusView";
 
 /**
  * Read-only dashboard shell (PRD §4.6). Three views — Index, Status,
@@ -9,49 +13,56 @@ import { StatusView } from "./views/StatusView.js";
  * performs a state change; every recommendation on screen is reproducible from
  * `ccharness recommend`.
  */
-type Tab = "index" | "status" | "recommend";
+const TABS = [
+  { key: "index", label: "Index", icon: Boxes },
+  { key: "status", label: "Status", icon: ListChecks },
+  { key: "recommend", label: "Recommendation", icon: Sparkles },
+] as const;
 
-const TABS: Array<{ key: Tab; label: string }> = [
-  { key: "index", label: "Index" },
-  { key: "status", label: "Status" },
-  { key: "recommend", label: "Recommendation" },
-];
-
-export function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>("index");
-
+export function App(): React.JSX.Element {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-lg font-semibold">ccharness</h1>
-            <p className="text-xs text-slate-500">read-only dashboard — views only, no state changes</p>
+    <TooltipProvider delayDuration={200}>
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
+                <Terminal className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="leading-tight">
+                <h1 className="font-semibold tracking-tight">ccharness</h1>
+                <p className="text-xs text-muted-foreground">
+                  read-only dashboard &middot; views only, no state changes
+                </p>
+              </div>
+            </div>
+            <ThemeToggle />
           </div>
-          <nav className="flex gap-1">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                  tab === t.key
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-6">
-        {tab === "index" && <IndexView />}
-        {tab === "status" && <StatusView />}
-        {tab === "recommend" && <RecommendView />}
-      </main>
-    </div>
+        <Tabs defaultValue="index" className="mx-auto max-w-6xl px-6 py-6">
+          <TabsList aria-label="Dashboard sections">
+            {TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                <t.icon className="h-3.5 w-3.5" aria-hidden />
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <main className="mt-6">
+            <TabsContent value="index" className="focus-visible:outline-none">
+              <IndexView />
+            </TabsContent>
+            <TabsContent value="status" className="focus-visible:outline-none">
+              <StatusView />
+            </TabsContent>
+            <TabsContent value="recommend" className="focus-visible:outline-none">
+              <RecommendView />
+            </TabsContent>
+          </main>
+        </Tabs>
+      </div>
+    </TooltipProvider>
   );
 }

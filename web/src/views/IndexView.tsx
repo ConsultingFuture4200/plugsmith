@@ -1,6 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { type ComponentDto, fetchIndex } from "../api.js";
+import { AlertCircle, Search, Zap } from "lucide-react";
+import * as React from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { type ComponentDto, fetchIndex } from "@/api";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { categoriesOf } from "@/lib/display";
 
 /**
  * Index view (PRD §4.6): browse/filter/search the synced component index by
@@ -10,15 +32,19 @@ import { type ComponentDto, fetchIndex } from "../api.js";
  */
 const TRUST_TIERS = ["", "official", "partner", "community"] as const;
 
-export function IndexView(): JSX.Element {
-  const [q, setQ] = useState("");
-  const [category, setCategory] = useState("");
-  const [trust, setTrust] = useState<string>("");
-  const [components, setComponents] = useState<ComponentDto[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+const chartConfig: ChartConfig = {
+  count: { label: "Components", color: "hsl(var(--chart-1))" },
+};
 
-  useEffect(() => {
+export function IndexView(): React.JSX.Element {
+  const [q, setQ] = React.useState("");
+  const [category, setCategory] = React.useState("");
+  const [trust, setTrust] = React.useState<string>("");
+  const [components, setComponents] = React.useState<ComponentDto[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -39,105 +65,214 @@ export function IndexView(): JSX.Element {
 
   // Trust-tier filter is applied client-side over API output (no new logic —
   // just hiding rows the API already returned).
-  const visible = useMemo(
+  const visible = React.useMemo(
     () => (trust ? components.filter((c) => c.trustTier === trust) : components),
     [components, trust],
   );
 
-  const categoryDistribution = useMemo(() => {
+  const categoryDistribution = React.useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of visible) {
-      for (const cat of c.categoryTags.length > 0 ? c.categoryTags : ["uncategorized"]) {
+      for (const cat of categoriesOf(c.categoryTags)) {
         counts.set(cat, (counts.get(cat) ?? 0) + 1);
       }
     }
-    return [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 14);
   }, [visible]);
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="search name / description"
-          className="flex-1 rounded border border-slate-300 px-3 py-1.5 text-sm"
-        />
-        <input
+    <section className="space-y-6" aria-label="Component index">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">Component index</h2>
+        <p className="text-sm text-muted-foreground">
+          Browse and filter the synced marketplace index. Trust tier, category, and
+          context-cost are rendered exactly as the index resolves them.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name or description…"
+            aria-label="Search components by name or description"
+            className="pl-9"
+          />
+        </div>
+        <Input
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="category id or key"
-          className="w-48 rounded border border-slate-300 px-3 py-1.5 text-sm"
+          placeholder="Category id or key"
+          aria-label="Filter by category"
+          className="sm:w-56"
         />
         <select
           value={trust}
           onChange={(e) => setTrust(e.target.value)}
-          className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+          aria-label="Filter by trust tier"
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:w-40"
         >
           {TRUST_TIERS.map((t) => (
             <option key={t || "all"} value={t}>
-              {t === "" ? "all tiers" : t}
+              {t === "" ? "All tiers" : t}
             </option>
           ))}
         </select>
       </div>
 
-      {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-      {categoryDistribution.length > 0 && (
-        <div className="rounded border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Category distribution</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={categoryDistribution} margin={{ left: 0, right: 8, top: 8, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-30} textAnchor="end" height={60} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#0f172a" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden />
+          <AlertTitle>Failed to load index</AlertTitle>
+          <AlertDescription className="font-mono text-xs">{error}</AlertDescription>
+        </Alert>
       )}
 
-      <p className="text-xs text-slate-500">
-        {loading ? "loading…" : `${visible.length} component(s)`}
-      </p>
+      {!error && (loading || categoryDistribution.length > 0) && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Category distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[220px] w-full" />
+            ) : (
+              <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
+                <BarChart data={categoryDistribution} margin={{ left: 0, right: 8, top: 8, bottom: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    angle={-30}
+                    textAnchor="end"
+                    height={70}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      <ul className="divide-y divide-slate-100 rounded border border-slate-200 bg-white">
-        {visible.map((c) => (
-          <li key={c.id} className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{c.name}</span>
-              <span className="flex items-center gap-2 text-xs">
-                <Badge tone={c.trustTier === "official" ? "green" : c.trustTier === "partner" ? "blue" : "slate"}>
-                  {c.trustTier}
-                </Badge>
-                {c.contextCostFlag && <Badge tone="amber">context-costly</Badge>}
-              </span>
-            </div>
-            {c.description && <p className="mt-1 text-sm text-slate-600">{c.description}</p>}
-            <p className="mt-1 text-xs text-slate-500">
-              {(c.categoryTags.length > 0 ? c.categoryTags : ["uncategorized"]).join(", ")}
-              {c.mcpServers > 0 && ` · mcp:${c.mcpServers}`}
-              {c.hooks > 0 && ` · hooks:${c.hooks}`}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {loading ? "Loading…" : `${visible.length.toLocaleString()} component(s)`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <IndexSkeleton />
+          ) : visible.length === 0 ? (
+            <p className="px-6 py-10 text-center text-sm text-muted-foreground">
+              No components match the current filters.
             </p>
-          </li>
-        ))}
-      </ul>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Component</TableHead>
+                  <TableHead className="hidden md:table-cell">Categories</TableHead>
+                  <TableHead className="w-px text-right">Trust</TableHead>
+                  <TableHead className="w-px text-right">Signals</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((c) => (
+                  <ComponentRow key={c.id} component={c} />
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </section>
   );
 }
 
-type Tone = "green" | "blue" | "slate" | "amber" | "red";
+function ComponentRow({ component: c }: { component: ComponentDto }): React.JSX.Element {
+  return (
+    <TableRow>
+      <TableCell className="align-top">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium">{c.name}</span>
+          <span className="font-mono text-xs text-muted-foreground">{c.id}</span>
+          {c.description && (
+            <span className="mt-1 line-clamp-2 max-w-prose text-xs text-muted-foreground">
+              {c.description}
+            </span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="hidden align-top md:table-cell">
+        <div className="flex flex-wrap gap-1">
+          {categoriesOf(c.categoryTags).map((cat) => (
+            <Badge key={cat} variant="info" className="font-normal">
+              {cat}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
+      <TableCell className="text-right align-top">
+        <Badge variant={c.trustTier}>{c.trustTier}</Badge>
+      </TableCell>
+      <TableCell className="align-top">
+        <div className="flex items-center justify-end gap-1.5">
+          {c.contextCostFlag && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Badge variant="warn">
+                    <Zap className="h-3 w-3" aria-hidden />
+                    cost
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Flagged context-costly</TooltipContent>
+            </Tooltip>
+          )}
+          {c.mcpServers > 0 && (
+            <Badge variant="outline" className="font-mono text-[10px]">
+              mcp:{c.mcpServers}
+            </Badge>
+          )}
+          {c.hooks > 0 && (
+            <Badge variant="outline" className="font-mono text-[10px]">
+              hooks:{c.hooks}
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
 
-const TONES: Record<Tone, string> = {
-  green: "bg-emerald-100 text-emerald-800",
-  blue: "bg-sky-100 text-sky-800",
-  slate: "bg-slate-100 text-slate-700",
-  amber: "bg-amber-100 text-amber-800",
-  red: "bg-red-100 text-red-800",
-};
-
-export function Badge({ tone, children }: { tone: Tone; children: React.ReactNode }): JSX.Element {
-  return <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>{children}</span>;
+function IndexSkeleton(): React.JSX.Element {
+  return (
+    <div className="divide-y divide-border">
+      {Array.from({ length: 8 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
+        <div key={i} className="flex items-center justify-between gap-4 px-6 py-4">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-56" />
+          </div>
+          <Skeleton className="h-5 w-16 rounded-md" />
+        </div>
+      ))}
+    </div>
+  );
 }
