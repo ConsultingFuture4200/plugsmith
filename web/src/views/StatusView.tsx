@@ -166,7 +166,7 @@ function StatusRow({ item }: { item: InventoryItemDto }): React.JSX.Element {
             on
           </Badge>
         ) : (
-          <Badge variant="community">
+          <Badge variant="disabled">
             <PowerOff className="h-3 w-3" aria-hidden />
             off
           </Badge>
@@ -201,7 +201,7 @@ function StatusRow({ item }: { item: InventoryItemDto }): React.JSX.Element {
 const ACCENTS = {
   default: "text-foreground",
   primary: "text-primary",
-  warn: "text-amber-600 dark:text-amber-400",
+  warn: "text-warn-foreground",
   muted: "text-muted-foreground",
 } as const;
 

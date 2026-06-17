@@ -15,15 +15,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 144 80% 6%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 44%;
     --destructive-foreground: 0 0% 98%;
+    --warn-foreground: 32 95% 44%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 142 71% 45%;
@@ -50,8 +51,9 @@
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 14%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 63% 45%;
+    --destructive: 0 72% 60%;
     --destructive-foreground: 0 0% 98%;
+    --warn-foreground: 43 96% 56%;
     --border: 240 3.7% 16%;
     --input: 240 3.7% 18%;
     --ring: 142 64% 47%;
@@ -71,5 +73,10 @@
     @apply bg-background text-foreground;
     margin: 0;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse {
+      animation: none;
+    }
   }
 }

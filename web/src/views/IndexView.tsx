@@ -12,6 +12,13 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -114,18 +121,18 @@ export function IndexView(): React.JSX.Element {
           aria-label="Filter by category"
           className="sm:w-56"
         />
-        <select
-          value={trust}
-          onChange={(e) => setTrust(e.target.value)}
-          aria-label="Filter by trust tier"
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background sm:w-40"
-        >
-          {TRUST_TIERS.map((t) => (
-            <option key={t || "all"} value={t}>
-              {t === "" ? "All tiers" : t}
-            </option>
-          ))}
-        </select>
+        <Select value={trust || "all"} onValueChange={(v) => setTrust(v === "all" ? "" : v)}>
+          <SelectTrigger aria-label="Filter by trust tier" className="sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TRUST_TIERS.map((t) => (
+              <SelectItem key={t || "all"} value={t || "all"}>
+                {t === "" ? "All tiers" : t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error && (

@@ -21,7 +21,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
@@ -81,9 +90,6 @@ export function RecommendView(): React.JSX.Element {
     }
   }
 
-  const selectClass =
-    "h-9 rounded-md border border-input bg-transparent px-2.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background";
-
   return (
     <section className="space-y-6" aria-label="Recommendation">
       <div className="flex flex-col gap-2">
@@ -110,37 +116,44 @@ export function RecommendView(): React.JSX.Element {
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <label className="flex items-center gap-1.5 text-muted-foreground">
               <span>Scope</span>
-              <select
+              <Select
                 value={scope}
-                onChange={(e) => setScope(e.target.value as "system" | "project")}
-                aria-label="Scope"
-                className={selectClass}
+                onValueChange={(v) => setScope(v as "system" | "project")}
               >
-                <option value="system">system</option>
-                <option value="project">project</option>
-              </select>
+                <SelectTrigger aria-label="Scope" className="h-9 w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">system</SelectItem>
+                  <SelectItem value="project">project</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="flex items-center gap-1.5 text-muted-foreground">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={tight}
-                onChange={(e) => setTight(e.target.checked)}
-                className="h-4 w-4 rounded border-input accent-primary"
+                onCheckedChange={(v) => setTight(v === true)}
+                aria-label="Keep context tight"
               />
               <span>Keep context tight</span>
             </label>
             <label className="flex items-center gap-1.5 text-muted-foreground">
               <span>Provider</span>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as "" | "anthropic" | "local")}
-                aria-label="Provider"
-                className={selectClass}
+              <Select
+                value={provider || "default"}
+                onValueChange={(v) =>
+                  setProvider(v === "default" ? "" : (v as "anthropic" | "local"))
+                }
               >
-                <option value="">default</option>
-                <option value="local">local</option>
-                <option value="anthropic">anthropic (CLI only)</option>
-              </select>
+                <SelectTrigger aria-label="Provider" className="h-9 w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">default</SelectItem>
+                  <SelectItem value="local">local</SelectItem>
+                  <SelectItem value="anthropic">anthropic (CLI only)</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <Button onClick={run} disabled={loading || !task.trim()} className="ml-auto">
               {loading ? (
@@ -271,10 +284,10 @@ function RecommendSkeleton(): React.JSX.Element {
           // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
           <div key={i} className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-16 animate-pulse rounded-md bg-muted" />
-              <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+              <Skeleton className="h-5 w-16 rounded-md" />
+              <Skeleton className="h-4 w-1/2 max-w-xs" />
             </div>
-            <div className="h-3 w-72 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-3 w-3/4 max-w-sm" />
           </div>
         ))}
       </CardContent>
