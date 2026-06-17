@@ -29,6 +29,8 @@ export interface InventoryItemDto {
     categoryTags: string[];
     trustTier: "official" | "partner" | "community";
     contextCostFlag: boolean;
+    description?: string;
+    contextTokens?: number;
   } | null;
   /** Whether the ref is a skill or a plugin (PRD §4.2). */
   kind?: "skill" | "plugin";

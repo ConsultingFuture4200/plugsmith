@@ -337,7 +337,9 @@ function formatInventoryItem(item: InventoryItem): string {
     const tags = item.resolved.categoryTags;
     const cats = tags.length > 0 ? tags.join(", ") : "uncategorized";
     const cost = item.resolved.contextCostFlag ? ", context-costly" : "";
-    provides = `${item.resolved.trustTier} — ${cats}${cost}`;
+    const tok = item.resolved.contextTokens != null ? `, ~${item.resolved.contextTokens} tok` : "";
+    const desc = item.resolved.description ? ` — ${truncate(item.resolved.description)}` : "";
+    provides = `${item.resolved.trustTier} — ${cats}${cost}${tok}${desc}`;
   } else if (item.derived != null) {
     const kind = item.kind ?? (item.componentRef.includes("@") ? "plugin" : "skill");
     const cats =

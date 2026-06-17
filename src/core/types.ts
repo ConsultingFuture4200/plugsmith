@@ -99,7 +99,10 @@ export interface InventoryItem {
   sourceFile: string;
   scannedAt: string;
   /** Annotation joined from the index; null when "installed, not in index". */
-  resolved?: Pick<Component, "categoryTags" | "trustTier" | "contextCostFlag"> | null;
+  resolved?: Pick<
+    Component,
+    "categoryTags" | "trustTier" | "contextCostFlag" | "description" | "contextTokens"
+  > | null;
   /**
    * Which kind of component this ref is, read from the scan shape (PRD §4.2): a
    * skill (bare directory name) or a plugin (`name@marketplace`). Undefined when

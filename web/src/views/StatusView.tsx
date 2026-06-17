@@ -25,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { type Comparators, SortableHead, useSort } from "@/components/sortable";
-import { categoriesOf } from "@/lib/display";
+import { categoriesOf, formatTokens } from "@/lib/display";
 
 /**
  * Status view (PRD §4.6): the visual form of `ccharness status`. Renders the
@@ -335,6 +335,15 @@ function StatusRow({ item }: { item: InventoryItemDto }): React.JSX.Element {
                     cost
                   </Badge>
                 )}
+                {item.resolved.contextTokens != null && (
+                  <Badge
+                    variant="secondary"
+                    className="font-mono font-normal"
+                    title="always-on context tokens"
+                  >
+                    {formatTokens(item.resolved.contextTokens)}
+                  </Badge>
+                )}
               </>
             ) : item.derived != null ? (
               <>
@@ -356,9 +365,9 @@ function StatusRow({ item }: { item: InventoryItemDto }): React.JSX.Element {
               </Badge>
             )}
           </div>
-          {item.derived?.description != null && (
+          {(item.resolved?.description ?? item.derived?.description) != null && (
             <p className="line-clamp-2 max-w-[28rem] text-right text-xs text-muted-foreground">
-              {item.derived.description}
+              {item.resolved?.description ?? item.derived?.description}
             </p>
           )}
         </div>

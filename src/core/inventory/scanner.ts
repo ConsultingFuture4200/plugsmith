@@ -313,6 +313,8 @@ export function reconcile(db: DB, report: ScanReport): InventoryItem[] {
         categoryTags: component.categoryTags,
         trustTier: component.trustTier,
         contextCostFlag: component.contextCostFlag,
+        ...(component.description ? { description: component.description } : {}),
+        ...(component.contextTokens != null ? { contextTokens: component.contextTokens } : {}),
       };
       return { ...item, resolved };
     }
