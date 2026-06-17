@@ -20,15 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { type Comparators, SortableHead, useSort } from "@/components/sortable";
 import { categoriesOf } from "@/lib/display";
 
 /**
@@ -41,6 +35,17 @@ const TRUST_TIERS = ["", "official", "partner", "community"] as const;
 
 const chartConfig: ChartConfig = {
   count: { label: "Components", color: "hsl(var(--chart-1))" },
+};
+
+const TRUST_RANK: Record<string, number> = { official: 0, partner: 1, community: 2 };
+
+/** Column comparators for the index table (sortable headers). */
+const INDEX_SORT: Comparators<ComponentDto> = {
+  component: (a, b) => a.name.localeCompare(b.name),
+  categories: (a, b) =>
+    (categoriesOf(a.categoryTags)[0] ?? "").localeCompare(categoriesOf(b.categoryTags)[0] ?? ""),
+  trust: (a, b) => (TRUST_RANK[a.trustTier] ?? 9) - (TRUST_RANK[b.trustTier] ?? 9),
+  signals: (a, b) => Number(b.contextCostFlag) - Number(a.contextCostFlag),
 };
 
 export function IndexView(): React.JSX.Element {
@@ -89,6 +94,8 @@ export function IndexView(): React.JSX.Element {
       .sort((a, b) => b.count - a.count)
       .slice(0, 14);
   }, [visible]);
+
+  const { sorted, state: sortState, toggle: onSort } = useSort(visible, INDEX_SORT);
 
   return (
     <section className="space-y-6" aria-label="Component index">
@@ -196,14 +203,34 @@ export function IndexView(): React.JSX.Element {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Component</TableHead>
-                  <TableHead className="hidden md:table-cell">Categories</TableHead>
-                  <TableHead className="w-px text-right">Trust</TableHead>
-                  <TableHead className="w-px text-right">Signals</TableHead>
+                  <SortableHead label="Component" sortKey="component" state={sortState} onSort={onSort} />
+                  <SortableHead
+                    label="Categories"
+                    sortKey="categories"
+                    state={sortState}
+                    onSort={onSort}
+                    className="hidden md:table-cell"
+                  />
+                  <SortableHead
+                    label="Trust"
+                    sortKey="trust"
+                    state={sortState}
+                    onSort={onSort}
+                    align="right"
+                    className="w-px text-right"
+                  />
+                  <SortableHead
+                    label="Signals"
+                    sortKey="signals"
+                    state={sortState}
+                    onSort={onSort}
+                    align="right"
+                    className="w-px text-right"
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((c) => (
+                {sorted.map((c) => (
                   <ComponentRow key={c.id} component={c} />
                 ))}
               </TableBody>
